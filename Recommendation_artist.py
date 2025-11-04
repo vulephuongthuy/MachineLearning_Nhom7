@@ -14,8 +14,8 @@ db = client["moo_d"]
 
 # --- TẢI MÔ HÌNH CF (đã train sẵn từ Colab) ---
 base_dir = os.path.dirname(os.path.abspath(__file__))
-model_path = os.path.join(base_dir, "model/model_artist.pkl")
-pivot_path = os.path.join(base_dir, "model/pivot_artist.pkl")
+model_path = os.path.join(base_dir, "models/model_artist.pkl")
+pivot_path = os.path.join(base_dir, "models/pivot_artist.pkl")
 
 try:
     model_artist = pickle.load(open(model_path, "rb"))

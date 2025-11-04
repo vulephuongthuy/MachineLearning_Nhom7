@@ -58,6 +58,7 @@ class MainScreen(Frame):
         self.profile_area = Frame(self.canvas, bg="lightgray")
         self.profile_frame = None
         self.wrapup_frame = None
+        self.current_content_frame = None
         if hasattr(self.master, "protocol"):
             self.master.protocol("WM_DELETE_WINDOW", self.on_close)
 
@@ -128,8 +129,62 @@ class MainScreen(Frame):
         self.destroy()
         sys.exit()
 
+    def show_artist_detail(self, artist_name):
+        """Hiển thị artist detail - CẬP NHẬT TITLE THÀNH 'DETAIL'"""
+        # Ẩn frame hiện tại
+        self.hide_current_content()
+
+        # Cập nhật title thành "Detail"
+        if hasattr(self, 'buttons'):
+            self.buttons.current_title = "Detail"
+            self.buttons.create_title()
+
+        # Tạo artist frame mới
+        from ui.ArtistDetail_UI import ArtistDetailFrame
+        self.artist_frame = ArtistDetailFrame(self, self.controller, artist_name)
+        self.current_content_frame = self.artist_frame
+        print(f"✅ Đã mở ArtistDetail cho: {artist_name}")
+
+    def hide_current_content(self):
+        """Ẩn frame content hiện tại - CHỈ ẨN, KHÔNG DESTROY SONG FRAME"""
+        if self.current_content_frame and self.current_content_frame.winfo_exists():
+            try:
+                # CHỈ destroy các frame custom như ArtistDetail
+                if hasattr(self.current_content_frame, '_is_destroyed'):
+                    self.current_content_frame.destroy()
+                else:
+                    self.current_content_frame.place_forget()
+            except:
+                pass
+            self.current_content_frame = None
+    def hide_all_custom_frames(self):
+        """Ẩn tất cả custom frames (ArtistDetail, etc.)"""
+        if hasattr(self, '_active_frames'):
+            for frame in self._active_frames[:]:  # Copy list để tránh modification during iteration
+                try:
+                    if hasattr(frame, 'hide'):
+                        frame.hide()
+                    else:
+                        frame.place_forget()
+                except:
+                    continue
+
+    # def show_default_content(self):
+    #     """Hiển thị content mặc định"""
+    #     if self.profile_frame:
+    #         self.profile_frame.destroy()
+    #         self.profile_frame = None
+    #     if self.wrapup_frame:
+    #         self.wrapup_frame.destroy()
+    #         self.wrapup_frame = None
+    #     self.profile_area.place_forget()
+
     def show_default_content(self):
-        """Hiển thị content mặc định"""
+        """Hiển thị content mặc định - OVERRIDE để ẩn custom frames"""
+        # Ẩn tất cả custom frames trước
+        self.hide_all_custom_frames()
+
+        # Hiển thị content mặc định
         if self.profile_frame:
             self.profile_frame.destroy()
             self.profile_frame = None
@@ -137,6 +192,11 @@ class MainScreen(Frame):
             self.wrapup_frame.destroy()
             self.wrapup_frame = None
         self.profile_area.place_forget()
+
+        # # Hiển thị songs content
+        # if hasattr(self, 'songs'):
+        #     self.songs.canvas.place(x=105, y=90)
+        #     self.songs.fixed_canvas.place(x=50, y=525)
 
     def open_profile(self):
         """Mở ProfileFrame như frame con, chừa toolbar"""
@@ -1206,9 +1266,431 @@ class Song():
 
         self.init_ai_recommender()
         # === END AI RECOMMENDATION ===
-
+        self.artist_recommendations_cache = None
+        self.artist_items = []
+        self.artist_images_cache = {}
         # Tạo AI recommendations sau khi khởi tạo xong
         self.parent.after(2000, self.load_ai_recommendations)
+        self.parent.after(500,self.create_artist_recommendations)
+    def create_artist_recommendations(self):
+        """Tạo khu vực hiển thị nghệ sĩ được gợi ý - VỊ TRÍ TRÁI"""
+        try:
+            # TRÁNH TRÙNG LẶP
+            if hasattr(self, 'artist_container') and self.artist_container and self.artist_container.winfo_exists():
+                return
+
+            print("🔄 Đang tạo artist recommendations...")
+
+            # Tạo container chính
+            self.artist_container = Frame(self.canvas, bg="#F7F7DC")
+
+            # 🎯 VỊ TRÍ TRÁI HƠN - GIẢM x XUỐNG
+            self.artist_canvas_id = self.canvas.create_window(
+                0, 560,  # 🆕 x=30 (trái hơn), y=540 (sau text "Recommended Artists")
+                window=self.artist_container,
+                anchor="nw",
+                width=900,  # 🆕 Tăng width lên để chiếm nhiều không gian hơn
+                height=200
+            )
+
+            # Canvas để cuộn ngang
+            self.artist_canvas = Canvas(
+                self.artist_container,
+                bg="#F7F7DC",
+                height=180,
+                width=900,  # 🆕 Đồng bộ width
+                highlightthickness=0
+            )
+            self.artist_canvas.pack(fill="both", expand=True)
+
+            # Frame chứa các artist item
+            self.artist_frame = Frame(self.artist_canvas, bg="#F7F7DC")
+            self.artist_canvas.create_window((0, 0), window=self.artist_frame, anchor="nw")
+
+            # MOUSE WHEEL CHO SCROLL NGANG
+            def on_artist_mousewheel(event):
+                """Scroll ngang khi dùng mouse wheel trên artist area"""
+                self.artist_canvas.xview_scroll(-1 * (event.delta // 120), "units")
+
+            def on_artist_enter(event):
+                """Khi chuột vào artist area - bind mouse wheel để scroll ngang"""
+                self.artist_canvas.bind_all("<MouseWheel>", on_artist_mousewheel)
+
+            def on_artist_leave(event):
+                """Khi chuột rời artist area - unbind để trả lại scroll dọc"""
+                self.artist_canvas.unbind_all("<MouseWheel>")
+
+            # Bind events cho scroll bằng mouse wheel
+            self.artist_canvas.bind("<Enter>", on_artist_enter)
+            self.artist_canvas.bind("<Leave>", on_artist_leave)
+            self.artist_frame.bind("<Enter>", on_artist_enter)
+            self.artist_frame.bind("<Leave>", on_artist_leave)
+
+            # Bind drag scroll (kéo chuột để scroll)
+            # self.artist_canvas.bind("<ButtonPress-1>", self.start_artist_drag)
+            # self.artist_canvas.bind("<B1-Motion>", self.do_artist_drag)
+            # self.artist_canvas.bind("<ButtonRelease-1>", self.stop_artist_drag)
+
+            # Tải dữ liệu
+            self.load_recommended_artists()
+
+            print("✅ Artist recommendations đã được tạo thành công")
+
+        except Exception as e:
+            print(f"❌ Lỗi khi tạo artist recommendations: {e}")
+
+            # MOUSE WHEEL CHO SCROLL NGANG
+            def on_artist_mousewheel(event):
+                self.artist_canvas.xview_scroll(-1 * (event.delta // 120), "units")
+
+            def on_artist_enter(event):
+                self.artist_canvas.bind_all("<MouseWheel>", on_artist_mousewheel)
+
+            def on_artist_leave(event):
+                self.artist_canvas.unbind_all("<MouseWheel>")
+
+            # Bind events
+            self.artist_canvas.bind("<Enter>", on_artist_enter)
+            self.artist_canvas.bind("<Leave>", on_artist_leave)
+            self.artist_frame.bind("<Enter>", on_artist_enter)
+            self.artist_frame.bind("<Leave>", on_artist_leave)
+
+            # Bind drag scroll
+            self.artist_canvas.bind("<ButtonPress-1>", self.start_artist_drag)
+            self.artist_canvas.bind("<B1-Motion>", self.do_artist_drag)
+            self.artist_canvas.bind("<ButtonRelease-1>", self.stop_artist_drag)
+
+            # Tải dữ liệu
+            self.load_recommended_artists()
+
+            print("✅ Artist recommendations đã được tạo thành công")
+
+        except Exception as e:
+            print(f"❌ Lỗi khi tạo artist recommendations: {e}")
+
+            # 🆕 QUAN TRỌNG: ENABLE MOUSE WHEEL CHO SCROLL NGANG
+            def on_artist_mousewheel(event):
+                # Scroll ngang khi dùng mouse wheel trên artist area
+                self.artist_canvas.xview_scroll(-1 * (event.delta // 120), "units")
+
+            def on_artist_enter(event):
+                # Khi chuột vào artist area, bind mouse wheel để scroll ngang
+                self.artist_canvas.bind_all("<MouseWheel>", on_artist_mousewheel)
+
+            def on_artist_leave(event):
+                # Khi chuột rời artist area, unbind để trả lại scroll dọc
+                self.artist_canvas.unbind_all("<MouseWheel>")
+
+            # Bind events
+            self.artist_canvas.bind("<Enter>", on_artist_enter)
+            self.artist_canvas.bind("<Leave>", on_artist_leave)
+            self.artist_frame.bind("<Enter>", on_artist_enter)
+            self.artist_frame.bind("<Leave>", on_artist_leave)
+
+            # Bind drag scroll
+            self.artist_canvas.bind("<ButtonPress-1>", self.start_artist_drag)
+            self.artist_canvas.bind("<B1-Motion>", self.do_artist_drag)
+            self.artist_canvas.bind("<ButtonRelease-1>", self.stop_artist_drag)
+
+            # Tải dữ liệu
+            self.load_recommended_artists()
+
+            print("✅ Artist recommendations đã được tạo thành công")
+
+        except Exception as e:
+            print(f"❌ Lỗi khi tạo artist recommendations: {e}")
+
+    def load_recommended_artists(self):
+        """Tải danh sách nghệ sĩ được gợi ý"""
+        if not session.current_user:
+            print("⚠️ Chưa có user đăng nhập")
+            return
+
+        user_id = session.current_user.get("userId")
+        if not user_id:
+            print("⚠️ Không tìm thấy user ID")
+            return
+
+        # Kiểm tra cache trước
+        if self.artist_recommendations_cache and self.artist_recommendations_cache.get('user_id') == user_id:
+            print("🎵 Using cached artist recommendations")
+            self.controller.after(0, lambda: self.display_artists(self.artist_recommendations_cache['data']))
+            return
+
+        def load_data():
+            try:
+                from Recommendation_artist import recommend_for_user
+                print(f"🔄 Đang tải recommendations cho user: {user_id}")
+                recommendations = recommend_for_user(user_id)
+
+                # Lưu vào cache
+                self.artist_recommendations_cache = {
+                    'user_id': user_id,
+                    'data': recommendations
+                }
+
+                print(f"✅ Đã tải được {len(recommendations)} recommendations")
+                self.controller.after(0, lambda: self.display_artists(recommendations))
+
+            except Exception as e:
+                print(f"❌ Lỗi khi load recommendations: {e}")
+
+        threading.Thread(target=load_data, daemon=True).start()
+
+    def display_artists(self, recommendations):
+        """Hiển thị danh sách nghệ sĩ - PHIÊN BẢN ĐƠN GIẢN"""
+        if not hasattr(self, 'artist_frame') or not self.artist_frame.winfo_exists():
+            print("⚠️ artist_frame không tồn tại")
+            return
+
+        # Xóa items cũ
+        self.clear_artist_recommendations()
+
+        if not recommendations:
+            print("⚠️ Không có recommendations")
+            no_data_label = Label(
+                self.artist_frame,
+                text="No artist recommendations available",
+                font=("Inter", 12),
+                fg="#89A34E",
+                bg="#F7F7DC"
+            )
+            no_data_label.pack(pady=20)
+            return
+
+        print(f"🎨 Đang hiển thị {len(recommendations)} nghệ sĩ")
+
+        # Kích thước và khoảng cách
+        item_width = 160
+        item_height = 180
+        item_margin = 20
+
+        # Hiển thị các nghệ sĩ
+        for i, artist_data in enumerate(recommendations[:8]):
+            x_pos = i * (item_width + item_margin)
+            self.create_artist_item(artist_data, x_pos, 0, item_width, item_height, i)
+
+        # Tính toán total width
+        total_width = len(recommendations[:8]) * (item_width + item_margin)
+
+        # 🎯 CẤU HÌNH KÍCH THƯỚC CHO SCROLL NGANG
+        self.artist_frame.config(width=total_width, height=item_height)
+
+        # 🎯 CẬP NHẬT SCROLLREGION - QUAN TRỌNG!
+        self.artist_frame.update_idletasks()
+        self.artist_canvas.config(
+            scrollregion=(0, 0, total_width, item_height)
+        )
+
+        # Cập nhật scrollregion cho canvas chính
+        self.update_scroll_region()
+
+        print(f"✅ Artist scroll configured: total_width={total_width}")
+
+    def create_artist_item(self, artist_data, x, y, width, height, index):
+        """Tạo một item artist - FIX POSITION"""
+        frame = Frame(self.artist_frame, bg="#F7F7DC", width=width, height=height + 20)
+        frame.pack_propagate(False)
+        frame.place(x=x, y=y)
+
+        bg_color = "#F7F7DC"
+        text_color = "#89A34E"
+
+        # Label cho ảnh
+        img_label = Label(frame, bg=bg_color, width=120, height=120)
+        img_label.pack(pady=8)
+
+        # Tải ảnh bất đồng bộ
+        threading.Thread(
+            target=self.load_artist_image,
+            args=(artist_data["artist"], img_label, (120, 120)),
+            daemon=True
+        ).start()
+
+        artist_name = artist_data["artist"]
+        artist_type = artist_data.get("type", "Recommended")
+
+        # Hiển thị thông tin
+        name_label = Label(frame, text=artist_name,
+                           font=("Inter", 11, "bold"),
+                           fg=text_color, bg=bg_color,
+                           wraplength=width - 15, justify="center")
+        name_label.pack(padx=8, pady=3)
+
+        # Lưu thông tin
+        artist_info = {
+            'name': artist_name,
+            'type': artist_type,
+            'frame': frame,
+            'name_label': name_label,
+            'img_label': img_label
+        }
+
+        self.artist_items.append(artist_info)
+
+        # Thêm sự kiện hover và click
+        for widget in [frame, img_label, name_label]:
+            widget.bind("<Button-1>", lambda e, name=artist_name: self.on_artist_click(name))
+            widget.bind("<Enter>", lambda e, w=widget: self.on_artist_hover(w, True))
+            widget.bind("<Leave>", lambda e, w=widget: self.on_artist_hover(w, False))
+
+    def load_artist_image(self, artist_name, img_label, size):
+        """Tải ảnh nghệ sĩ bất đồng bộ"""
+        try:
+            db = self.controller.get_db()
+
+            # Tìm bài hát của nghệ sĩ để lấy ảnh
+            track = db.db["tracks"].find_one(
+                {"artistName": artist_name},
+                {"artworkUrl100": 1, "artworkUrl600": 1}
+            )
+
+            image_url = None
+            if track:
+                image_url = track.get("artworkUrl600") or track.get("artworkUrl100")
+
+            if image_url:
+                # Tải và resize ảnh
+                image_bytes = urlopen(image_url).read()
+                pil_image = Image.open(BytesIO(image_bytes))
+                pil_image = pil_image.resize(size, Image.Resampling.LANCZOS)
+                photo = ImageTk.PhotoImage(pil_image)
+
+                # Lưu vào cache
+                self.artist_images_cache[artist_name] = photo
+
+                def update_ui():
+                    if img_label.winfo_exists():
+                        img_label.config(image=photo)
+                        img_label.image = photo
+
+                self.controller.after(0, update_ui)
+            else:
+                self.load_default_artist_image(img_label, size)
+
+        except Exception as e:
+            print(f"⚠️ Lỗi tải ảnh nghệ sĩ {artist_name}: {e}")
+            self.load_default_artist_image(img_label, size)
+
+    def load_default_artist_image(self, img_label, size):
+        """Tải ảnh mặc định"""
+        try:
+            default_img = Image.open(relative_to_assets("artist_default.png"))
+            default_img = default_img.resize(size, Image.Resampling.LANCZOS)
+            photo = ImageTk.PhotoImage(default_img)
+
+            def update_ui():
+                if img_label.winfo_exists():
+                    img_label.config(image=photo)
+                    img_label.image = photo
+
+            self.controller.after(0, update_ui)
+        except Exception as e:
+            print(f"⚠️ Lỗi tải ảnh mặc định: {e}")
+
+    def on_artist_click(self, artist_name):
+        """Xử lý khi click vào nghệ sĩ - CẬP NHẬT TITLE"""
+        print(f"🎵 Clicked artist: {artist_name}")
+
+        # Gọi phương thức của MainScreen và cập nhật title
+        if hasattr(self.parent, 'show_artist_detail'):
+            self.parent.show_artist_detail(artist_name)
+        elif hasattr(self.parent, 'buttons'):
+            # Fallback: cập nhật title trực tiếp
+            self.parent.buttons.current_title = "Detail"
+            self.parent.buttons.create_title()
+    def on_artist_hover(self, widget, is_enter):
+        """Hiệu ứng hover - ĐỔI MÀU CẢ KHUNG CHỮ"""
+        if is_enter:
+            widget.config(cursor="hand2")
+            if isinstance(widget, Frame):
+                # 🎯 ĐỔI MÀU NỀN FRAME
+                widget.config(bg="#F1EBD0")
+                # 🎯 ĐỔI MÀU NỀN TẤT CẢ WIDGET CON TRONG FRAME
+                for child in widget.winfo_children():
+                    if hasattr(child, 'config'):
+                        try:
+                            child.config(bg="#F1EBD0")
+                        except:
+                            pass
+            elif hasattr(widget, 'config'):
+                try:
+                    current_bg = widget.cget('bg')
+                    if current_bg == "#F7F7DC":
+                        widget.config(bg="#F1EBD0")
+                except:
+                    pass
+        else:
+            if isinstance(widget, Frame):
+                # 🎯 TRỞ LẠI MÀU GỐC CHO FRAME
+                widget.config(bg="#F7F7DC")
+                # 🎯 TRỞ LẠI MÀU GỐC CHO TẤT CẢ WIDGET CON
+                for child in widget.winfo_children():
+                    if hasattr(child, 'config'):
+                        try:
+                            child.config(bg="#F7F7DC")
+                        except:
+                            pass
+            elif hasattr(widget, 'config'):
+                try:
+                    current_bg = widget.cget('bg')
+                    if current_bg == "#F1EBD0":
+                        widget.config(bg="#F7F7DC")
+                except:
+                    pass
+    def clear_artist_recommendations(self):
+        """Xóa tất cả artist recommendations"""
+        for item in self.artist_items:
+            if 'frame' in item and item['frame'].winfo_exists():
+                item['frame'].destroy()
+        self.artist_items.clear()
+
+        # Các hàm hỗ trợ cuộn
+
+    def start_artist_drag(self, event):
+        """Bắt đầu kéo để scroll ngang"""
+        self.artist_canvas.scan_mark(event.x, event.y)
+        self.artist_canvas.config(cursor="fleur")
+
+    def do_artist_drag(self, event):
+        """Kéo để scroll ngang"""
+        self.artist_canvas.scan_dragto(event.x, event.y, gain=1)
+
+    def stop_artist_drag(self, event):
+        """Kết thúc kéo"""
+        self.artist_canvas.config(cursor="")
+
+    def on_artist_mousewheel(self, event):
+        """Xử lý cuộn bằng chuột"""
+        if hasattr(self, 'artist_canvas'):
+            self.artist_canvas.xview_scroll(-1 * (event.delta // 120), "units")
+
+    def clear_cache(self):
+        """Xóa cache khi cần (ví dụ khi logout)"""
+        self.artist_recommendations_cache = None
+        self.artist_images_cache.clear()
+
+    def hide_artist_recommendations(self):
+        """Ẩn artist recommendations khi không ở home"""
+        if hasattr(self, 'artist_container') and self.artist_container:
+            self.artist_container.place_forget()
+            # Hoặc nếu dùng create_window:
+            self.canvas.delete(self.artist_canvas_id)
+    def on_artist_mousewheel(self, event):
+        """Xử lý cuộn bằng chuột cho artist recommendations"""
+        if hasattr(self, 'artist_canvas'):
+            self.artist_canvas.xview_scroll(-1 * (event.delta // 120), "units")
+
+    def on_artist_scan_mark(self, event):
+        """Hàm cuộn (drag-scroll) - Bắt đầu nhấn"""
+        if hasattr(self, 'artist_canvas'):
+            self.artist_canvas.scan_mark(event.x, 0)
+
+    def on_artist_scan_drag(self, event):
+        """Hàm cuộn (drag-scroll) - Kéo chuột"""
+        if hasattr(self, 'artist_canvas'):
+            self.artist_canvas.scan_dragto(event.x, 0, gain=1)
+
 
     def set_buttons(self, buttons):
         self.buttons = buttons

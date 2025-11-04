@@ -3,7 +3,6 @@ from datetime import datetime
 import threading
 import time
 import tkinter
-from io import BytesIO
 from tkinter import Menu, PhotoImage, Entry, Scale, Canvas, Frame, \
     messagebox, Label
 from tkinter.constants import HORIZONTAL
@@ -1232,13 +1231,6 @@ class Song():
         self.recommendation_frame = Frame(self.recommendation_canvas,bg="#F7F7DC")
         self.recommendation_canvas.create_window((0, 0),window=self.recommendation_frame,
                                                  anchor="nw")
-        self.recommendation_canvas.drag_data = {"x": 0}
-
-        # Binding events - THÊM TRÊN CẢ FRAME
-        self.recommendation_canvas.bind("<ButtonPress-1>", self.start_drag)
-        self.recommendation_canvas.bind("<B1-Motion>", self.do_drag)
-        self.recommendation_frame.bind("<ButtonPress-1>", self.start_drag)
-        self.recommendation_frame.bind("<B1-Motion>", self.do_drag)
 
         # Canvas thư viện
         self.library_canvas = Canvas(self.parent, width=1000, height=408,
@@ -1286,7 +1278,7 @@ class Song():
 
             # 🎯 VỊ TRÍ TRÁI HƠN - GIẢM x XUỐNG
             self.artist_canvas_id = self.canvas.create_window(
-                0, 560,  # 🆕 x=30 (trái hơn), y=540 (sau text "Recommended Artists")
+                0, 540,  # 🆕 x=30 (trái hơn), y=540 (sau text "Recommended Artists")
                 window=self.artist_container,
                 anchor="nw",
                 width=900,  # 🆕 Tăng width lên để chiếm nhiều không gian hơn
@@ -1676,10 +1668,6 @@ class Song():
             self.artist_container.place_forget()
             # Hoặc nếu dùng create_window:
             self.canvas.delete(self.artist_canvas_id)
-    def on_artist_mousewheel(self, event):
-        """Xử lý cuộn bằng chuột cho artist recommendations"""
-        if hasattr(self, 'artist_canvas'):
-            self.artist_canvas.xview_scroll(-1 * (event.delta // 120), "units")
 
     def on_artist_scan_mark(self, event):
         """Hàm cuộn (drag-scroll) - Bắt đầu nhấn"""
@@ -1714,7 +1702,6 @@ class Song():
                 return
 
             user_id = session.current_user.get("userId")
-            print(f"🎯 Loading AI for user: {user_id}")
 
             # 1. Lấy moodID mới nhất từ MongoDB
             try:
@@ -1731,7 +1718,6 @@ class Song():
 
             # 2. Load model từ zip file
             zip_path = "models/recommend_for_today.zip"
-            print(f"🔍 Looking for model at: {zip_path}")
 
             if not os.path.exists(zip_path):
                 print(f"❌ Model zip file not found: {zip_path}")
@@ -1740,23 +1726,19 @@ class Song():
 
             with zipfile.ZipFile(zip_path, 'r') as zip_ref:
                 temp_dir = tempfile.mkdtemp()
-                print(f"📁 Extracting to temp directory: {temp_dir}")
                 zip_ref.extractall(temp_dir)
 
                 all_files = os.listdir(temp_dir)
-                print(f"📄 Files in temp directory: {all_files}")
 
                 # Tìm file model (.joblib)
                 model_files = [f for f in all_files if f.endswith('.joblib')]
                 if model_files:
                     model_path = os.path.join(temp_dir, model_files[0])
-                    print(f"✅ Loading model from: {model_path}")
 
                     # Load components bằng joblib
                     try:
                         import joblib
                         components = joblib.load(model_path)
-                        print("✅ Model loaded with joblib")
                     except Exception as e:
                         print(f"❌ Joblib load failed: {e}")
                         self.ai_components = None
@@ -1776,8 +1758,6 @@ class Song():
                         user_exists = user_id_str in favorites_df[
                             'userId'].astype(str).values
 
-                        print(
-                            f"🎯 FINAL RESULT: User {user_id_str} is {'EXISTING' if user_exists else 'NEW'} user")
                         return not user_exists
 
                     def new_recommend_for_user(user_id, top_n=10):
@@ -1828,12 +1808,6 @@ class Song():
                         'recommendation_functions': new_functions
                     }
 
-                    # Test user type
-                    print(f"\n🧪 TESTING is_new_user for {user_id}:")
-                    test_result = new_is_new_user(user_id)
-                    print(
-                        f"🎯 TEST RESULT: User {user_id} is {'NEW' if test_result else 'EXISTING'}")
-
                 else:
                     print("❌ No .joblib file found in zip")
                     self.ai_components = None
@@ -1859,17 +1833,12 @@ class Song():
             # Kiểm tra user type
             is_new_user = functions['is_new_user'](user_id_str)
             user_type = "MỚI" if is_new_user else "CŨ"
-            print(
-                f"🎯 User {user_id_str} là {user_type} với mood {current_mood_id}")
 
             # Gọi recommendation function tương ứng
             if is_new_user:
-                print("🆕 Using NEW USER algorithm: Heuristic scoring")
                 recommendations_df = functions['recommend_for_new_user'](
                     user_id_str, num_recommendations)
             else:
-                print(
-                    "👤 Using EXISTING USER algorithm: LightGBM + Collaborative Filtering")
                 recommendations_df = functions['recommend_for_user'](
                     user_id_str, num_recommendations)
 
@@ -1894,8 +1863,6 @@ class Song():
                         'user_type': user_type
                     })
 
-                print(
-                    f"✅ Generated {len(recommendations)} recommendations for {user_type} user")
                 return recommendations
 
         except Exception as e:
@@ -1946,9 +1913,6 @@ class Song():
             print("⚠️ No AI recommendations available")
             return
 
-        print(
-            f"🎵 Displaying {len(recommendations)} AI recommendations horizontally")
-
         # Kích thước mỗi item
         item_width = 150
         item_height = 200
@@ -1966,35 +1930,24 @@ class Song():
             scrollregion=self.recommendation_canvas.bbox("all"))
         self.recommendation_canvas.configure(xscrollcommand=lambda *args: None)
 
-    def start_drag(self, event):
-        self.recommendation_canvas.drag_start_x = event.x
-        self.recommendation_canvas.config(cursor="hand2")
+        self.recommendation_canvas.bind("<Enter>", self.on_ai_recommendation_enter)
+        self.recommendation_canvas.bind("<Leave>", self.on_ai_recommendation_leave)
+        self.recommendation_frame.bind("<Enter>", self.on_ai_recommendation_enter)
+        self.recommendation_frame.bind("<Leave>", self.on_ai_recommendation_leave)
 
-    def do_drag(self, event):
-        if not hasattr(self.recommendation_canvas, 'drag_start_x'):
-            return
+    def on_ai_recommendation_mousewheel(self, event):
+        """Xử lý cuộn bằng chuột cho AI recommendations"""
+        self.recommendation_canvas.xview_scroll(-1 * (event.delta // 120),
+                                                "units")
 
-        delta_x = self.recommendation_canvas.drag_start_x - event.x
+    def on_ai_recommendation_enter(self, event):
+        """Khi chuột vào AI recommendation area - bind mouse wheel để scroll ngang"""
+        self.recommendation_canvas.bind_all("<MouseWheel>",
+                                            self.on_ai_recommendation_mousewheel)
 
-        # Lấy vị trí scroll hiện tại
-        current_pos = self.recommendation_canvas.canvasx(0)
-
-        # Tính vị trí mới - di chuyển theo đúng delta_x
-        new_pos = current_pos + delta_x
-
-        # Giới hạn trong phạm vi cho phép
-        bbox = self.recommendation_canvas.bbox("all")
-        if bbox:
-            canvas_width = self.recommendation_canvas.winfo_width()
-            content_width = bbox[2]
-            max_scroll = max(0, content_width - canvas_width)
-            new_pos = max(0, min(new_pos, max_scroll))
-
-            # Di chuyển đến vị trí mới
-            self.recommendation_canvas.xview_moveto(new_pos / content_width)
-
-        # Cập nhật vị trí bắt đầu cho lần kéo tiếp theo
-        self.recommendation_canvas.drag_start_x = event.x
+    def on_ai_recommendation_leave(self, event):
+        """Khi chuột rời AI recommendation area - unbind để trả lại scroll dọc"""
+        self.recommendation_canvas.unbind_all("<MouseWheel>")
 
     def clear_ai_recommendations(self):
         """Xóa tất cả AI recommendations hiện tại"""
@@ -2117,7 +2070,7 @@ class Song():
         self.recommendation_items.append(song_data)
 
         db = self.controller.get_db()
-        # 🎯 QUAN TRỌNG: Convert trackId sang int trước khi query
+        # QUAN TRỌNG: Convert trackId sang int trước khi query
         track_id_int = int(recommendation['trackId'])
         song = db.db["tracks"].find_one({"trackId": track_id_int})
 
@@ -2247,12 +2200,6 @@ class Song():
 
         except Exception as e:
             print(f"❌ Lỗi khi lưu lịch sử nghe: {e}")
-
-    def update_history_list(self, song):
-        """Đưa bài hát mới nhất lên đầu danh sách hiển thị"""
-        self.history_list = [s for s in self.history_list if
-                             s.get("trackId") != song.get("trackId")]
-        self.history_list.insert(0, song)
 
     def update_history_display(self):
         """Cập nhật hiển thị lịch sử"""
@@ -2926,15 +2873,8 @@ class Song():
                 self.parent.after(500, self.check_song_end)
                 return
 
-            current_time = self.get_current_time()
-            song_length = self.get_total_time()
-
             # Nếu bài hát kết thúc (cách 0.5s)
             if self.player.get_state() == vlc.State.Ended:
-                # self.start_time = 0
-                # self.paused_time = 0
-                # self.is_playing = False
-                # self.is_paused = False
 
                 if self.repeat_mode == 1:  # Repeat One
                     if not getattr(self, "repeat_once_flag", False):

@@ -62,8 +62,8 @@ class MainScreen(Frame):
             self.master.protocol("WM_DELETE_WINDOW", self.on_close)
 
         # self.songs.load_user_songs()
-        self.purchased_tracks_cache = set()
-        self.load_purchased_cache()
+        # self.purchased_tracks_cache = set()
+        # self.load_purchased_cache()
         self.image_cache = {}
         self.max_image_cache = 500
         # Load all tracks for search
@@ -417,70 +417,175 @@ class MainScreen(Frame):
             # Fail silently - giữ icon mặc định
             pass
 
+    # def handle_suggestion_click(self, song):
+    #     """Xử lý click vào suggestion item - SIÊU NHANH với cache"""
+    #     print(f"🎵 Click bài hát: {song.get('trackName')}")
+    #
+    #     track_id = song.get('trackId')
+    #     track_name = song.get('trackName')
+    #
+    #     # 🎯 KIỂM TRA: Nếu cache chưa load, load ngay
+    #     if not hasattr(self,
+    #                    'purchased_tracks_cache') or self.purchased_tracks_cache is None:
+    #         print("⚠️ Cache chưa load, loading now...")
+    #         self.load_purchased_cache()
+    #
+    #     # 🎯 KIỂM TRA CACHE CỰC NHANH
+    #     if track_id in self.purchased_tracks_cache:
+    #         # ĐÃ MUA - PLAY NGAY
+    #         print(f"✅ Đã mua, đang phát: {track_name}")
+    #         self.songs.on_song_click(track_id)
+    #         self.suggestion_container.place_forget()
+    #         self.buttons.search_entry.delete(0, 'end')
+    #     else:
+    #         # CHƯA MUA - HIỆN MESSAGE BOX NGAY
+    #         print(f"❌ Chưa mua, hiện message box: {track_name}")
+    #         response = messagebox.askyesno(
+    #             "Bài hát chưa mua",
+    #             f"Bạn chưa mua bài hát '{track_name}'.\n\nBạn có muốn mua bài hát này?",
+    #             icon='question'
+    #         )
+    #         if response:
+    #             print(f"🎯 User chọn mua: {track_name}")
+    #             self.open_payment_for_song(song)
+    #         else:
+    #             print(f"❌ User từ chối mua: {track_name}")
     def handle_suggestion_click(self, song):
-        """Xử lý click vào suggestion item - SIÊU NHANH với cache"""
+        """Xử lý click vào suggestion item - ĐỌC TRỰC TIẾP TỪ DB"""
         print(f"🎵 Click bài hát: {song.get('trackName')}")
 
-        track_id = song.get('trackId')
+        track_id = str(song.get('trackId'))
         track_name = song.get('trackName')
 
-        # 🎯 KIỂM TRA: Nếu cache chưa load, load ngay
-        if not hasattr(self,
-                       'purchased_tracks_cache') or self.purchased_tracks_cache is None:
-            print("⚠️ Cache chưa load, loading now...")
-            self.load_purchased_cache()
-
-        # 🎯 KIỂM TRA CACHE CỰC NHANH
-        if track_id in self.purchased_tracks_cache:
+        # 🎯 KIỂM TRA TRỰC TIẾP TỪ DB - LUÔN CÓ DATA MỚI NHẤT
+        if self.is_track_purchased(track_id):
             # ĐÃ MUA - PLAY NGAY
             print(f"✅ Đã mua, đang phát: {track_name}")
             self.songs.on_song_click(track_id)
             self.suggestion_container.place_forget()
             self.buttons.search_entry.delete(0, 'end')
         else:
-            # CHƯA MUA - HIỆN MESSAGE BOX NGAY
+            # CHƯA MUA - HIỆN MESSAGE BOX
             print(f"❌ Chưa mua, hiện message box: {track_name}")
             response = messagebox.askyesno(
                 "Bài hát chưa mua",
                 f"Bạn chưa mua bài hát '{track_name}'.\n\nBạn có muốn mua bài hát này?",
                 icon='question'
             )
-
             if response:
                 print(f"🎯 User chọn mua: {track_name}")
                 self.open_payment_for_song(song)
             else:
                 print(f"❌ User từ chối mua: {track_name}")
+
+    def is_track_purchased(self, track_id):
+        """Kiểm tra trực tiếp từ DB xem track đã được mua chưa - XỬ LÝ CẢ STRING VÀ NUMBER"""
+        try:
+            user_id = session.current_user.get("userId")
+            if not user_id:
+                print("⚠️ Chưa có user ID")
+                return False
+
+            db = self.controller.get_db()
+
+            # 🎯 CHUẨN HÓA ID
+            user_id_str = str(user_id)
+            track_id_str = str(track_id)
+
+            # 🎯 DEBUG
+            print(f"🔍 IS_TRACK_PURCHASED DEBUG:")
+            print(f"   User ID: {user_id_str}")
+            print(f"   Track ID: {track_id_str}")
+
+            # 🎯 QUERY LINH HOẠT - THỬ CẢ STRING VÀ NUMBER
+            queries = [
+                # Thử với string trước (cách MainScreen đang dùng)
+                {"userId": user_id_str, "trackId": track_id_str},
+                # Thử với number (cách Payment có thể đang lưu)
+                {"userId": user_id_str, "trackId": int(track_id) if track_id.isdigit() else track_id},
+                # Thử với user_id number (phòng trường hợp)
+                {"userId": int(user_id) if user_id.isdigit() else user_id, "trackId": track_id_str},
+            ]
+
+            for i, query in enumerate(queries):
+                purchase = db.db["purchase"].find_one(query)
+                if purchase:
+                    print(f"✅ FOUND PURCHASE với query {i + 1}: {query}")
+                    print(f"   Track: {purchase.get('trackName')}")
+                    return True
+
+            print(f"❌ PURCHASE NOT FOUND với mọi query")
+            return False
+
+        except Exception as e:
+            print(f"❌ Lỗi kiểm tra purchase: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+
+    # def open_payment_for_song(self, song):
+    #     """Mở payment frame cho bài hát"""
+    #     self.suggestion_container.place_forget()
+    #     self.buttons.search_entry.delete(0, 'end')
+    #
+    #     try:
+    #         if hasattr(self.controller, 'show_frame'):
+    #             self.controller.show_frame("Payment")
+    #
+    #             if hasattr(self.controller, 'frames') and "Payment" in self.controller.frames:
+    #                 payment_frame = self.controller.frames["Payment"]
+    #                 if hasattr(payment_frame, 'set_track'):
+    #                     payment_frame.set_track(song)
+    #                     print(f"✅ Đã chuyển bài hát đến Payment: {song.get('trackName')}")
+    #
+    #         elif hasattr(self, 'master') and hasattr(self.master, 'show_frame'):
+    #             self.master.show_frame("Payment")
+    #
+    #         else:
+    #             print("❌ Không thể truy cập Payment frame")
+    #
+    #     except Exception as e:
+    #         print(f"❌ Lỗi mở Payment: {e}")
+    #         messagebox.showerror("Lỗi", "Không thể mở trang thanh toán")
     def open_payment_for_song(self, song):
         """Mở payment frame cho bài hát"""
         self.suggestion_container.place_forget()
         self.buttons.search_entry.delete(0, 'end')
 
-        # 🎯 SỬA LỖI: Truy cập controller đúng cách
         try:
-            # Cách 1: Nếu controller có show_frame
+            # Cách 1: Dùng controller chính
             if hasattr(self.controller, 'show_frame'):
                 self.controller.show_frame("Payment")
 
-                # Tìm payment frame trong frames của controller
-                if hasattr(self.controller,
-                           'frames') and "Payment" in self.controller.frames:
+                # Truyền dữ liệu bài hát sang Payment frame
+                if hasattr(self.controller, 'frames') and "Payment" in self.controller.frames:
                     payment_frame = self.controller.frames["Payment"]
                     if hasattr(payment_frame, 'set_track'):
                         payment_frame.set_track(song)
-                        print(
-                            f"✅ Đã chuyển bài hát đến Payment: {song.get('trackName')}")
+                        print(f"✅ Đã chuyển bài hát đến Payment: {song.get('trackName')}")
 
-            # Cách 2: Nếu controller là app chính
+            # Cách 2: Dùng master nếu controller không có show_frame
             elif hasattr(self, 'master') and hasattr(self.master, 'show_frame'):
                 self.master.show_frame("Payment")
 
+            # Cách 3: Fallback - thử truy cập trực tiếp
             else:
-                print("❌ Không thể truy cập Payment frame")
+                print("⚠️ Không tìm thấy controller, thử cách khác...")
+                # Tìm Payment frame trong parent
+                for widget in self.master.winfo_children():
+                    if hasattr(widget, '__class__') and widget.__class__.__name__ == "PaymentFrame":
+                        widget.lift()
+                        if hasattr(widget, 'set_track'):
+                            widget.set_track(song)
+                        print(f"✅ Đã tìm thấy và chuyển đến Payment frame")
+                        break
+                else:
+                    print("❌ Không thể truy cập Payment frame")
 
         except Exception as e:
             print(f"❌ Lỗi mở Payment: {e}")
             messagebox.showerror("Lỗi", "Không thể mở trang thanh toán")
+
 
     def load_image_async(self, url, label, size):
         """Tải ảnh từ URL trong Thread - Fix memory issues"""
@@ -541,32 +646,32 @@ class MainScreen(Frame):
             print(f"❌ Lỗi khi load tracks: {e}")
             self.all_tracks = []
 
-    def load_purchased_cache(self):
-        """Load tất cả purchased tracks vào cache"""
-        try:
-            user_id = session.current_user.get("userId")
-            if not user_id:
-                print("⚠️ Chưa có user ID để load cache")
-                return
-
-            db = self.controller.get_db()
-            purchases = list(db.db["purchase"].find(
-                {"userId": str(user_id)},
-                {"trackId": 1}
-            ).limit(1000))  # Giới hạn 1000 bài
-
-            self.purchased_tracks_cache = {p["trackId"] for p in purchases}
-            print(
-                f"✅ Đã cache {len(self.purchased_tracks_cache)} bài hát đã mua")
-
-            # Debug: in 5 bài đầu để kiểm tra
-            if self.purchased_tracks_cache:
-                sample_tracks = list(self.purchased_tracks_cache)[:5]
-                print(f"📝 Sample cached tracks: {sample_tracks}")
-
-        except Exception as e:
-            print(f"❌ Lỗi load cache: {e}")
-            self.purchased_tracks_cache = set()
+    # def load_purchased_cache(self):
+    #     """Load tất cả purchased tracks vào cache"""
+    #     try:
+    #         user_id = session.current_user.get("userId")
+    #         if not user_id:
+    #             print("⚠️ Chưa có user ID để load cache")
+    #             return
+    #
+    #         db = self.controller.get_db()
+    #         purchases = list(db.db["purchase"].find(
+    #             {"userId": str(user_id)},
+    #             {"trackId": 1}
+    #         ).limit(1000))  # Giới hạn 1000 bài
+    #
+    #         self.purchased_tracks_cache = {p["trackId"] for p in purchases}
+    #         print(
+    #             f"✅ Đã cache {len(self.purchased_tracks_cache)} bài hát đã mua")
+    #
+    #         # Debug: in 5 bài đầu để kiểm tra
+    #         if self.purchased_tracks_cache:
+    #             sample_tracks = list(self.purchased_tracks_cache)[:5]
+    #             print(f"📝 Sample cached tracks: {sample_tracks}")
+    #
+    #     except Exception as e:
+    #         print(f"❌ Lỗi load cache: {e}")
+    #         self.purchased_tracks_cache = set()
 
 class Button():
     def __init__(self, parent, canvas, song):

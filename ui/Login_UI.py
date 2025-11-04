@@ -4,7 +4,7 @@ import random
 import shutil
 import smtplib
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 import qrcode
 import requests
@@ -1215,10 +1215,54 @@ class Payment(Frame):
         except Exception as e:
             print(f"Lỗi khi huỷ QR: {e}")
 
+    def add_to_purchase(self, song=None):
+        """Thêm bài hát vào danh sách purchase (khi thanh toán thành công)"""
+        song = self.track_data
+        if not song:
+            print("⚠️ Không có bài hát để thêm vào purchase.")
+            return False
+
+        try:
+            db = self.controller.get_db()
+            user_id = str(session.current_user.get("userId"))
+            track_id = song.get("trackId")
+
+            # Kiểm tra đã mua trước đó chưa
+            if db.db["purchase"].find_one({"userId": user_id, "trackId": track_id}):
+                print("ℹ️ Bài hát đã được mua trước đó.")
+                return True
+
+            # Tạo ObjectId mới
+            purchase_object_id = ObjectId()
+
+            purchased_time = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+            # Dữ liệu purchase mới
+            new_purchase = {
+                "_id": purchase_object_id,
+                "purchaseId": str(purchase_object_id)[-6:],
+                "userId": user_id,
+                "trackId": track_id,
+                "trackName": song.get("trackName"),
+                "artistName": song.get("artistName"),
+                "artworkUrl100": song.get("artworkUrl100", "assets/default.png"),
+                "purchased_at": purchased_time
+            }
+
+            # Lưu vào MongoDB
+            db.insert_one("purchase", new_purchase)
+            return True
+
+        except Exception as e:
+            print(f"❌ Lỗi khi thêm purchase: {e}")
+            return False
+
+    # PHIÊN BẢN TỐI ƯU - ĐỌC TRỰC TIẾP TỪ DB
     def payment_successful(self):
-        """Xử lý khi thanh toán thành công"""
+        """Xử lý khi thanh toán thành công - Phiên bản tối ưu"""
         try:
             # XÓA CANVAS QR TRƯỚC
+            self.add_to_purchase()
             if hasattr(self, 'qr_canvas'):
                 self.qr_canvas.destroy()
 
@@ -1230,10 +1274,8 @@ class Payment(Frame):
             self.success_canvas.place(x=0, y=0)
 
             # Load background
-            self.success_canvas.create_image(500, 320, image=self.image_cache[
-                "payment_bg"])
-            self.success_canvas.create_image(500, 20,
-                                             image=self.image_cache["payment1"])
+            self.success_canvas.create_image(500, 320, image=self.image_cache["payment_bg"])
+            self.success_canvas.create_image(500, 20, image=self.image_cache["payment1"])
 
             # Hiển thị success message
             self.success_canvas.create_text(500, 250,
@@ -1244,13 +1286,7 @@ class Payment(Frame):
                                             text="Thank you for your purchase!",
                                             font=("Inter", 16), fill="#F2829E")
 
-            # 🎯 THÊM: Refresh cache ở MainScreen
-            if hasattr(self.controller,
-                       'frames') and "HomeScreen" in self.controller.frames:
-                main_frame = self.controller.frames["HomeScreen"]
-                if hasattr(main_frame, 'refresh_purchased_cache'):
-                    main_frame.refresh_purchased_cache()
-                    print("✅ Đã refresh purchased cache sau khi mua bài hát")
+            print("✅ Payment successful - MainScreen sẽ kiểm tra DB trực tiếp")
 
             # Tự động quay về home sau 2 giây
             self.after(2000, self.close_payment_frame)
@@ -1258,25 +1294,33 @@ class Payment(Frame):
         except Exception as e:
             print(f"Lỗi khi xử lý thành công: {e}")
 
-    # def update_countdown(self):
-    #     """Cập nhật countdown timer"""
-    #     if (self.countdown_seconds > 0 and
-    #             self.is_countdown_running and
-    #             hasattr(self, 'qr_canvas')):
-    #
-    #         self.qr_canvas.itemconfig(self.countdown_label,
-    #                                   text=f"⏳ Auto success in: {self.countdown_seconds} seconds")
-    #         self.countdown_seconds -= 1
-    #         self.after(1000, self.update_countdown)
-    #     elif self.countdown_seconds == 0 and self.is_countdown_running:
-    #         self.payment_successful()
-
     def close_payment_frame(self):
-        """Đóng frame payment"""
+        """Đóng payment frame và quay về MainScreen"""
         try:
-            self.controller.destroy_frame("Payment")
+            if hasattr(self, 'success_canvas'):
+                self.success_canvas.destroy()
+
+            # Quay về MainScreen
+            self.controller.show_frame("HomeScreen")
+
+            # TỰ ĐỘNG PLAY BÀI HÁT VỪA MUA (tuỳ chọn)
+            track_id = str(self.track.get('trackId')) if hasattr(self, 'track') else None
+            if track_id:
+                self.auto_play_purchased_song(track_id)
+
         except Exception as e:
-            print(f"Lỗi khi đóng frame: {e}")
+            print(f"Lỗi khi đóng payment frame: {e}")
+
+    def auto_play_purchased_song(self, track_id):
+        """Tự động phát bài hát vừa mua"""
+        try:
+            if hasattr(self.controller,
+                       'frames') and "HomeScreen" in self.controller.frames:
+                main_screen = self.controller.frames["HomeScreen"]
+                # Delay để đảm bảo MainScreen đã load xong
+                main_screen.after(500, lambda: main_screen.songs.on_song_click(track_id))
+        except Exception as e:
+            print(f" Lỗi auto play: {e}")
 
 
 

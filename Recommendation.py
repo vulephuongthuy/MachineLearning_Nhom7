@@ -89,7 +89,6 @@ def recommend_for_new_user(user_id, components, db_connection, top_n=10,
     song_mood_df = components['song_mood']
     ratings_df = components['ratings']
     favorites_df = components['favorites_with_artist']
-    purchased_df = components['purchased']
 
     # 🎯 LẤY MOOD MỚI NHẤT TỪ MONGODB
     try:
@@ -139,11 +138,24 @@ def recommend_for_new_user(user_id, components, db_connection, top_n=10,
         fav_counts[['trackId', 'fav_count']], on='trackId', how='left')
     mood_matched_pool['fav_count'] = mood_matched_pool['fav_count'].fillna(0)
 
+    # Lấy purchased từ MongoDB thay vì components
+    try:
+        # Lấy danh sách trackId đã mua từ MongoDB (giữ nguyên int)
+        user_purchased_tracks = db_connection.db["purchase"].find(
+            {"userId": user_id},
+            {"trackId": 1}
+        )
+        user_purchased = set(
+            [doc["trackId"] for doc in user_purchased_tracks])  # Giữ nguyên int
+        print(
+            f"📦 Loaded {len(user_purchased)} purchased tracks from MongoDB for user {user_id}")
+    except Exception as e:
+        print(f"❌ Error getting purchased tracks from MongoDB: {e}")
+        user_purchased = set()
+
     # 🎯 GIỐNG GỐC: Loại bỏ bài đã mua
-    user_purchased = set(
-        purchased_df[purchased_df["userId"] == user_id]["trackId"])
     final_candidates = mood_matched_pool[
-        ~mood_matched_pool["trackId"].isin(user_purchased)]
+        ~mood_matched_pool["trackId"].isin(user_purchased)].copy()
 
     if len(final_candidates) == 0:
         return pd.DataFrame()
@@ -183,7 +195,6 @@ def recommend_for_user(user_id, components, db_connection, top_n=10,
     model = components['model']
     feature_cols = components['feature_cols']
     tracks_df = components['tracks']
-    purchased_df = components['purchased']
 
     # 🎯 LẤY MOOD MỚI NHẤT TỪ MONGODB
     try:
@@ -205,13 +216,23 @@ def recommend_for_user(user_id, components, db_connection, top_n=10,
     # 🎯 SỬ DỤNG MOOD TỪ MONGODB ĐỂ SO MOOD
     mood_id = current_mood_id
 
+    # Lấy purchased từ MongoDB thay vì components
+    try:
+        # Lấy danh sách trackId đã mua từ MongoDB (giữ nguyên int)
+        user_purchased_tracks = db_connection.db["purchase"].find(
+            {"userId": user_id},
+            {"trackId": 1}
+        )
+        user_purchased = set(
+            [doc["trackId"] for doc in user_purchased_tracks])  # Giữ nguyên int
+        print(
+            f"📦 Loaded {len(user_purchased)} purchased tracks from MongoDB for user {user_id}")
+    except Exception as e:
+        print(f"❌ Error getting purchased tracks from MongoDB: {e}")
+        user_purchased = set()
+
     # 🎯 GIỐNG GỐC: Lọc bài chưa mua
-    purchased_df["userId"] = purchased_df["userId"].astype(str)
-    purchased_df["trackId"] = purchased_df["trackId"].astype(str)
-    tracks_df["trackId"] = tracks_df["trackId"].astype(str)
-    user_purchased = set(
-        purchased_df.loc[purchased_df["userId"] == str(user_id), "trackId"]
-    )
+    tracks_df["trackId"] = tracks_df["trackId"].astype(int)
     candidate_df = tracks_df[~tracks_df["trackId"].isin(user_purchased)].copy()
     candidate_df["userId"] = user_id
 

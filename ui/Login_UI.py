@@ -1181,12 +1181,6 @@ class Payment(Frame):
             self.qr_canvas.create_text(500, 130, text="Please scan the QR code to complete payment",
                                        font=("Inter", 14), fill="#89A34E")
 
-            # # Countdown timer
-            # self.countdown_label = self.qr_canvas.create_text(500, 465,
-            #                                                   text=f"⏳ Auto success in: {self.countdown_seconds} seconds",
-            #                                                   font=("Inter", 14, "bold"),
-            #                                                   fill="#F2829E")
-
             close_btn = self.qr_canvas.create_image(30, 23, image=self.image_cache["payment_close"])
             self.qr_canvas.tag_bind(close_btn, "<Button-1>", lambda e: self.close_payment_frame())
 

@@ -57,3 +57,7 @@ def is_valid_username(username):
 def is_valid_email(email):
     """Kiểm tra định dạng email hợp lệ."""
     return re.match(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$", email) is not None
+
+def truncate_text(text, max_length=25):
+    """Cắt ngắn chuỗi nếu quá dài"""
+    return text if len(text) <= max_length else text[:max_length - 3] + "..."

@@ -13,6 +13,7 @@ import sys
 import requests
 import vlc
 from PIL.Image import Resampling
+from customtkinter import CTkButton
 
 import session
 from Recommendation import *
@@ -1180,7 +1181,56 @@ class Song():
         self.artist_images_cache = {}
         # Tạo AI recommendations sau khi khởi tạo xong
         self.parent.after(2000, self.load_ai_recommendations)
-        self.parent.after(500,self.create_artist_recommendations)
+        self.parent.after(500, self.create_artist_recommendations)
+
+        # Canvas cho genre tracks
+        self.genre_tracks_canvas = Canvas(self.parent, width=1000, height=418,
+                                          bg="#F7F7DC", bd=0, highlightthickness=0)
+        self.genre_tracks_canvas.place(x=103, y=0)
+        self.genre_tracks_canvas.place_forget()  # Ẩn ngay khi khởi tạo
+
+        self.genre_tracks_frame = Frame(self.genre_tracks_canvas, bg="#F7F7DC")
+        self.genre_tracks_canvas_window = self.genre_tracks_canvas.create_window((0, 0),
+                                                                                 window=self.genre_tracks_frame,
+                                                                                 anchor="nw", width=844)
+
+        # Tạo thanh cuộn cho genre_tracks_canvas - FIX LỖI
+        self.genre_tracks_canvas.configure(yscrollcommand=None)  # Không dùng yscrollcommand
+        self.genre_tracks_frame.bind("<Configure>", self.setup_scroll_region)
+
+        # Tạo canvas riêng cho genre recommendations ngang
+        self.genre_canvas = Canvas(self.canvas, width=900, height=210,
+                                   bg="#F7F7DC", highlightthickness=0)
+        self.genre_canvas_id = self.canvas.create_window(0, 790, window=self.genre_canvas,
+                                                         anchor="nw", width=900, height=210)
+        self.genre_canvas.configure(xscrollcommand=lambda *args: None)
+
+        # Frame chứa các genre item (sắp xếp ngang)
+        self.genre_frame = Frame(self.genre_canvas, bg="#F7F7DC")
+        self.genre_canvas.create_window((0, 0), window=self.genre_frame, anchor="nw")
+
+        # List để lưu các genre items
+        self.genre_items = []
+
+        # Thêm biến lưu kết quả genre recommendations
+        self.genre_recommendations_cache = None
+        self.load_genre_recommendations()
+
+        # Tạo canvas riêng cho top chart ngang
+        self.topchart_canvas = Canvas(self.canvas, width=900, height=210,
+                                      bg="#F7F7DC", highlightthickness=0)
+        self.topchart_canvas_id = self.canvas.create_window(0, 288, window=self.topchart_canvas,
+                                                            anchor="nw", width=900, height=210)
+        self.topchart_canvas.configure(xscrollcommand=lambda *args: None)
+
+        # Frame chứa các top chart item (sắp xếp ngang)
+        self.topchart_frame = Frame(self.topchart_canvas, bg="#F7F7DC")
+        self.topchart_canvas.create_window((0, 0), window=self.topchart_frame, anchor="nw")
+
+        # List để lưu các mood items
+        self.topchart_items = []
+        self.load_mood_categories()
+
     def create_artist_recommendations(self):
         """Tạo khu vực hiển thị nghệ sĩ được gợi ý - VỊ TRÍ TRÁI"""
         try:
@@ -1596,14 +1646,510 @@ class Song():
         if hasattr(self, 'artist_canvas'):
             self.artist_canvas.scan_dragto(event.x, 0, gain=1)
 
+    def setup_scroll_binding(self, canvas):
+        """Thiết lập scroll binding cho canvas"""
+        canvas.bind("<Configure>", self.update_scroll_region)
+        canvas.bind("<MouseWheel>", lambda e: canvas.yview_scroll(-1 * (e.delta // 120), "units"))
 
     def set_buttons(self, buttons):
         self.buttons = buttons
+
+    # ==================== UTILITY FUNCTIONS ====================
+
+    def get_full_track_data(self, track):
+        """Lấy full track data từ MongoDB"""
+        try:
+            db = self.controller.get_db()
+            track_id = track.get('trackId')
+            return db.db["tracks"].find_one({"trackId": int(track_id)}) or track
+        except Exception as e:
+            print(f"❌ Error loading song data: {e}")
+            return track
+
+    def load_track_image_async(self, track, song_data, img_label):
+        """Tải ảnh bất đồng bộ"""
+
+        def load_image():
+            try:
+                img = None
+                if song_data and song_data.get("artworkUrl100"):
+                    url = song_data.get("artworkUrl100")
+
+                    if url in self.image_cache:
+                        img = self.image_cache[url]
+                    else:
+                        image_bytes = urlopen(url).read()
+                        pil_image = Image.open(BytesIO(image_bytes))
+                        pil_image = pil_image.resize((100, 100), Image.Resampling.LANCZOS)
+                        img = ImageTk.PhotoImage(pil_image)
+                        self.image_cache[url] = img
+
+                self.parent.after(0, lambda: self.update_image_label(img_label, img, track))
+
+            except Exception as e:
+                print(f"❌ Error loading image: {e}")
+                self.parent.after(0, lambda: self.update_image_label(img_label, None, track))
+
+        threading.Thread(target=load_image, daemon=True).start()
+
+    def update_image_label(self, img_label, img, track):
+        """Cập nhật image label"""
+        if img_label.winfo_exists():
+            if img:
+                img_label.config(image=img)
+                img_label.image = img
+            else:
+                img_label.config(text="🎵", font=("Arial", 24), fg="#89A34E")
+
+    def check_and_bind_purchase_events(self, widgets, track, song_data):
+        """Kiểm tra purchase status và bind events"""
+
+        def check_purchase():
+            try:
+                db = self.controller.get_db()
+                user_id = session.current_user.get("userId")
+
+                if not user_id:
+                    return
+
+                purchased = db.db["purchase"].find_one({
+                    "userId": user_id,
+                    "trackId": track.get('trackId')
+                })
+
+                self.parent.after(0, lambda: self.bind_events_based_on_purchase(
+                    widgets, purchased, track, song_data
+                ))
+
+            except Exception as e:
+                print(f"❌ Error checking purchase: {e}")
+                self.parent.after(0, lambda: self.bind_payment_events(widgets, song_data))
+
+        threading.Thread(target=check_purchase, daemon=True).start()
+
+    def bind_events_based_on_purchase(self, widgets, purchased, track, song_data):
+        """Bind events dựa trên trạng thái purchase"""
+        frame, img_label, title_label, artist_label = widgets
+        if purchased:
+            self.bind_play_events(widgets, track.get('trackId'))
+        else:
+            self.bind_payment_events(widgets, song_data)
+            # Thêm nút mua hàng
+            self.add_buy_button(frame, song_data)
+
+    def add_buy_button(self, parent_frame, song_data):
+        """Thêm nút mua hàng vào frame"""
+        try:
+            # Tạo ảnh cho nút giá
+            self.image_cache["buy_btn"] = load_image("Buy_button.png")
+
+            buy_btn = CTkButton(
+                parent_frame,
+                image=self.image_cache["buy_btn"],
+                text="",
+                hover_color="#F7F7DC",
+                fg_color="#F7F7DC",
+                bg_color="#F7F7DC",
+                border_width=0,
+                corner_radius=0,
+                cursor="hand2",
+                command=lambda s=song_data: self.controller.process_payment(s)
+            )
+            buy_btn.pack(side="right", padx=(0, 10))
+
+        except Exception as e:
+            print(f"❌ Lỗi khi tạo nút mua hàng: {e}")
+
+    def bind_play_events(self, widgets, track_id):
+        """Bind sự kiện phát nhạc"""
+        for widget in widgets:
+            widget.bind("<Button-1>", lambda e, t=track_id: self.on_song_click(t))
+            widget.config(cursor="hand2")
+
+    def bind_payment_events(self, widgets, song_data):
+        """Bind sự kiện mua hàng"""
+        for widget in widgets:
+            widget.bind("<Button-1>", lambda e, data=song_data: self.controller.process_payment(data))
+            widget.config(cursor="hand2")
+
+    def create_track_item_common(self, parent_frame, track):
+        """Hàm chung để tạo track item"""
+        # Lấy full song data
+        song_data = self.get_full_track_data(track)
+
+        # Tạo UI frame
+        frame = Frame(parent_frame, bg="#F7F7DC", padx=10, pady=5)
+        frame.pack(fill="x", expand=True)
+
+        # Tạo image label và load ảnh
+        img_label = Label(frame, bg="#F7F7DC", width=100, height=100)
+        img_label.pack(side="left", padx=10)
+        self.load_track_image_async(track, song_data, img_label)
+
+        # Tạo text info
+        text_frame = Frame(frame, bg="#F7F7DC")
+        text_frame.pack(side="left", fill="x", expand=True)
+
+        track_name = truncate_text(track.get("trackName", "Unknown"), 40)
+        artist_name = truncate_text(track.get("artistName", "Unknown Artist"), 30)
+
+        text_color = "#89A34E"
+        title_label = Label(text_frame, text=track_name,
+                            font=("Coiny Regular", 18), fg=text_color, bg="#F7F7DC")
+        title_label.pack(anchor="w")
+
+        artist_label = Label(text_frame, text=artist_name,
+                             font=("Newsreader Regular", 14), fg=text_color, bg="#F7F7DC")
+        artist_label.pack(anchor="w")
+
+        def bind_mousewheel_to_item(widget):
+            widget.bind("<MouseWheel>", lambda e: self.on_track_item_mousewheel(e))
+            for child in widget.winfo_children():
+                bind_mousewheel_to_item(child)
+
+        bind_mousewheel_to_item(frame)
+
+        # Kiểm tra và bind events
+        widgets = (frame, img_label, title_label, artist_label)
+        self.check_and_bind_purchase_events(widgets, track, song_data)
+
+        return frame
+
+    def on_track_item_mousewheel(self, event):
+        """Xử lý mousewheel trên track items"""
+        try:
+            self.genre_tracks_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        except Exception as e:
+            print(f"⚠️ Lỗi mousewheel trên item: {e}")
+
+    def setup_scroll_region(self, event=None):
+        """Cập nhật scroll region - FIX LỖI"""
+        try:
+            # Đảm bảo frame đã được cập nhật
+            self.genre_tracks_frame.update_idletasks()
+
+            # Lấy kích thước thực tế của frame
+            bbox = self.genre_tracks_canvas.bbox("all")
+            if bbox:
+                self.genre_tracks_canvas.configure(scrollregion=bbox)
+        except Exception as e:
+            print(f"⚠️ Lỗi setup scroll: {e}")
+
+    def setup_mousewheel_binding(self, canvas, frame):
+        """Thiết lập mousewheel binding cho cả canvas và frame"""
+
+        def on_mousewheel(event):
+            try:
+                canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+            except Exception as e:
+                print(f"⚠️ Lỗi mousewheel: {e}")
+
+        # Bind cho canvas
+        canvas.bind("<MouseWheel>", on_mousewheel)
+
+        # Bind cho frame và tất cả widget con
+        frame.bind("<MouseWheel>", on_mousewheel)
+
+        # Bind đệ quy cho tất cả widget con trong frame
+        def bind_recursive(widget):
+            widget.bind("<MouseWheel>", on_mousewheel)
+            for child in widget.winfo_children():
+                bind_recursive(child)
+
+        bind_recursive(frame)
+
+    def on_item_hover(self, widget, is_enter):
+        """Hàm hover chung"""
+        if is_enter:
+            widget.config(cursor="hand2", bg="#F0F0E0")
+        else:
+            widget.config(bg="#F7F7DC")
+
+        # ==================== MOOD CATEGORIES ====================
+
+    def load_mood_categories(self):
+        """Tải và hiển thị các mood categories"""
+        mood_categories = [
+            {'mood_name': 'Happy Songs', 'mood_value': 1},
+            {'mood_name': 'Sad Songs', 'mood_value': 2},
+            {'mood_name': 'Neutral Songs', 'mood_value': 3},
+            {'mood_name': 'Intense Songs', 'mood_value': 4}
+        ]
+
+        print(f"🎵 Displaying {len(mood_categories)} mood categories")
+        self.display_mood_categories(mood_categories)
+
+    def display_mood_categories(self, mood_categories):
+        """Hiển thị mood categories theo hàng ngang"""
+        item_width = 200
+        item_height = 200
+        item_margin = 20
+
+        for i, mood_data in enumerate(mood_categories):
+            x_pos = i * (item_width + item_margin)
+            self.create_mood_category_item(mood_data, x_pos, 10, item_width, item_height, i)
+
+        total_width = len(mood_categories) * (item_width + item_margin)
+        self.topchart_frame.config(width=total_width, height=item_height)
+        self.topchart_canvas.config(scrollregion=(0, 0, total_width, item_height))
+
+    def create_mood_category_item(self, mood_data, x, y, width, height, index):
+        """Tạo một item mood category"""
+        frame = Frame(self.topchart_frame, bg="#F7F7DC", width=width, height=height)
+        frame.pack_propagate(False)
+        frame.place(x=x, y=y)
+
+        canvas = Canvas(frame, width=width, height=height, bg="#F7F7DC", highlightthickness=0)
+        canvas.pack(fill="both", expand=True)
+
+        cache_key = f"mood_category_bg_{index}"
+        if cache_key not in self.image_cache:
+            self.image_cache[cache_key] = load_image("genre_rec.jpg", size=(370, 370), opacity=0.8)
+
+        canvas.create_image(width // 2, height // 2, image=self.image_cache[cache_key])
+        canvas.create_text(width // 2, height // 2, text=mood_data['mood_name'],
+                           font=("Coiny Regular", 17, "bold"), fill="#89A34E",
+                           anchor="center", width=width - 20)
+
+        self.topchart_items.append({
+            'mood_data': mood_data, 'frame': frame, 'canvas': canvas, 'index': index
+        })
+
+        for widget in [frame, canvas]:
+            widget.bind("<Button-1>", lambda e, mood=mood_data: self.on_mood_category_click(mood))
+            widget.bind("<Enter>", lambda e, w=widget: self.on_item_hover(w, True))
+            widget.bind("<Leave>", lambda e, w=widget: self.on_item_hover(w, False))
+
+    def on_mood_category_click(self, mood_data):
+        """Xử lý khi click vào mood category"""
+        print(f"🎵 Mood category clicked: {mood_data['mood_name']}")
+        self.load_top_songs_by_mood(mood_data['mood_value'], mood_data['mood_name'])
+
+    def load_top_songs_by_mood(self, mood_value, mood_name):
+        """Tải top 30 bài hát cho mood"""
+
+        def load_songs_data():
+            try:
+                from datetime import datetime
+                db = self.controller.get_db()
+                history_collection = f"history_{datetime.now().year}-{datetime.now().month:02d}"
+
+                print(f"🎵 Loading top songs for: {mood_name}")
+
+                pipeline = [
+                    {"$group": {
+                        "_id": "$trackId",
+                        "trackName": {"$first": "$trackName"},
+                        "artistName": {"$first": "$artistName"},
+                        "artworkUrl100": {"$first": "$artworkUrl100"},
+                        "play_count": {"$sum": 1}
+                    }},
+                    {"$sort": {"play_count": -1}},
+                    {"$lookup": {
+                        "from": "song_mood_community",
+                        "localField": "_id",
+                        "foreignField": "trackId",
+                        "as": "mood_info"
+                    }},
+                    {"$match": {"mood_info.mood_community": mood_value}},
+                    {"$limit": 30},
+                    {"$project": {
+                        "trackId": "$_id",
+                        "trackName": 1,
+                        "artistName": 1,
+                        "artworkUrl100": 1,
+                        "genre": {"$arrayElemAt": ["$mood_info.genre", 0]},
+                        "play_count": 1,
+                        "popularity_score": {"$divide": ["$play_count", 10]}
+                    }}
+                ]
+
+                top_songs = list(db.db[history_collection].aggregate(pipeline))
+                print(f"✅ Found {len(top_songs)} songs for mood {mood_name}")
+                self.parent.after(0, lambda: self.show_mood_songs_modal(mood_name, top_songs))
+
+            except Exception as e:
+                print(f"❌ Error: {e}")
+
+        threading.Thread(target=load_songs_data, daemon=True).start()
+
+    def show_mood_songs_modal(self, mood_name, tracks):
+        """Hiển thị tracks của mood"""
+        print(f"🎵 Hiển thị {len(tracks)} tracks cho mood: {mood_name}")
+
+        self.genre_tracks_canvas.yview_moveto(0)
+
+        self.genre_tracks_canvas.place(x=103, y=90)
+
+        # Xóa nội dung cũ
+        for widget in self.genre_tracks_frame.winfo_children():
+            widget.destroy()
+
+        self.parent.buttons.current_title = f"{mood_name} - Top 30 Songs"
+        self.parent.buttons.create_title()
+
+        # Hiển thị tracks
+        for track in tracks:
+            self.create_mood_track_item(track)
+
+        # FIX SCROLL - ĐỢI MỘT CHÚT RỒI CẬP NHẬT
+        def delayed_scroll_setup():
+            self.genre_tracks_frame.update_idletasks()
+            self.setup_scroll_region()
+            self.setup_mousewheel_binding(self.genre_tracks_canvas, self.genre_tracks_frame)
+
+        self.parent.after(100, delayed_scroll_setup)
+
+    def create_mood_track_item(self, track: dict):
+        """Tạo mood track item"""
+        self.create_track_item_common(self.genre_tracks_frame, track)
+
+        # ==================== GENRE RECOMMENDATIONS ====================
+
+    def load_genre_recommendations(self):
+        """Tải genre recommendations"""
+        if not session.current_user:
+            return
+
+        user_id = session.current_user.get("userId")
+        if not user_id:
+            return
+
+        if self.genre_recommendations_cache and self.genre_recommendations_cache.get('user_id') == user_id:
+            print("🎵 Using cached genre recommendations")
+            self.parent.after(0, lambda: self.display_genre_recommendations(self.genre_recommendations_cache))
+            return
+
+        def load_recommendations():
+            try:
+                from genre_recommendation import get_genre_recommendations
+                result = get_genre_recommendations(user_id)
+                result['user_id'] = user_id
+                self.genre_recommendations_cache = result
+                self.parent.after(0, lambda: self.display_genre_recommendations(result))
+            except Exception as e:
+                print(f"❌ Lỗi khi tải genre recommendations: {e}")
+
+        threading.Thread(target=load_recommendations, daemon=True).start()
+
+    def display_genre_recommendations(self, result):
+        """Hiển thị genre recommendations"""
+        self.clear_genre_recommendations()
+
+        if not result or 'error' in result:
+            print("⚠️ No genre recommendations available")
+            return
+
+        top_genres = result.get('top_genres', [])
+        print(f"🎵 Displaying {len(top_genres)} genre recommendations horizontally")
+
+        item_width = 200
+        item_height = 200
+        item_margin = 20
+
+        for i, genre in enumerate(top_genres):
+            x_pos = i * (item_width + item_margin)
+            self.create_genre_item(genre, x_pos, 10, item_width, item_height, i, result)
+
+        total_width = len(top_genres) * (item_width + item_margin)
+        self.genre_frame.config(width=total_width, height=item_height)
+        self.genre_canvas.config(scrollregion=(0, 0, total_width, item_height))
+
+    def clear_genre_recommendations(self):
+        """Xóa genre recommendations"""
+        for item in self.genre_items:
+            if 'frame' in item and item['frame'].winfo_exists():
+                item['frame'].destroy()
+        self.genre_items.clear()
+
+    def create_genre_item(self, genre_name, x, y, width, height, index, result=None):
+        """Tạo genre item"""
+        frame = Frame(self.genre_frame, bg="#F7F7DC", width=width, height=height)
+        frame.pack_propagate(False)
+        frame.place(x=x, y=y)
+
+        canvas = Canvas(frame, width=width, height=height, bg="#F7F7DC", highlightthickness=0)
+        canvas.pack(fill="both", expand=True)
+
+        cache_key = f"genre_item_bg_{index}"
+        if cache_key not in self.image_cache:
+            self.image_cache[cache_key] = load_image("genre_rec.jpg", size=(370, 370), opacity=0.8)
+
+        canvas.create_image(width // 2, height // 2, image=self.image_cache[cache_key])
+        canvas.create_text(width // 2, 100, text=genre_name,
+                           font=("Coiny Regular", 17, "bold"), fill="#89A34E",
+                           anchor="center", width=width - 20)
+
+        self.genre_items.append({
+            'genre_name': genre_name, 'frame': frame, 'canvas': canvas,
+            'index': index, 'result': result
+        })
+
+        for widget in [frame, canvas]:
+            widget.bind("<Button-1>", lambda e, genre=genre_name, res=result: self.on_genre_click(genre, res))
+            widget.bind("<Enter>", lambda e, w=widget: self.on_item_hover(w, True))
+            widget.bind("<Leave>", lambda e, w=widget: self.on_item_hover(w, False))
+
+    def on_genre_click(self, genre_name, result=None):
+        """Xử lý khi click vào genre"""
+        print(f"🎵 Genre clicked: {genre_name}")
+
+        if result:
+            print(f"🔍 Result type: {type(result)}")
+            if 'recommendations' in result:
+                for rec in result['recommendations']:
+                    if rec['genre'] == genre_name:
+                        tracks = rec['tracks']
+                        print(f"✅ Found tracks for {genre_name}: {len(tracks)} tracks")
+                        self.parent.after(0, lambda: self.show_genre_tracks(genre_name))
+                        return
+
+    def show_genre_tracks(self, genre_name):
+        """Hiển thị genre tracks"""
+
+        def load_tracks():
+            try:
+                from genre_recommendation import recommend_tracks_for_genre
+                user_id = session.current_user.get("userId")
+                tracks = recommend_tracks_for_genre(user_id, genre_name, limit=10)
+                self.parent.after(0, lambda: self.display_genre_tracks_modal(genre_name, tracks))
+            except Exception as e:
+                print(f"❌ Lỗi khi tải tracks cho genre {genre_name}: {e}")
+
+        threading.Thread(target=load_tracks, daemon=True).start()
+
+    def display_genre_tracks_modal(self, genre_name, tracks):
+        """Hiển thị genre tracks modal"""
+        print(f"🎵 Hiển thị {len(tracks)} tracks cho genre: {genre_name}")
+        self.genre_tracks_canvas.yview_moveto(0)
+
+        self.genre_tracks_canvas.place(x=103, y=90)
+        for widget in self.genre_tracks_frame.winfo_children():
+            widget.destroy()
+
+        self.parent.buttons.current_title = genre_name
+        self.parent.buttons.create_title()
+
+        for track in tracks:
+            self.create_genre_track_item(track)
+
+        # FIX SCROLL - ĐỢI MỘT CHÚT RỒI CẬP NHẬT
+        def delayed_scroll_setup():
+            self.genre_tracks_frame.update_idletasks()
+            self.setup_scroll_region()
+            self.setup_mousewheel_binding(self.genre_tracks_canvas, self.genre_tracks_frame)
+
+        self.parent.after(100, delayed_scroll_setup)
+
+    def create_genre_track_item(self, track: dict):
+        """Tạo genre track item"""
+        self.create_track_item_common(self.genre_tracks_frame, track)
 
     def hide_all_views(self):
         """Ẩn tất cả các view"""
         self.canvas.place_forget()
         self.library_canvas.place_forget()
+        self.genre_tracks_canvas.place_forget()
 
         # Ẩn các manager
         self.owned_songs_manager.hide()
@@ -2562,6 +3108,7 @@ class Song():
         self.liked_songs_manager.canvas.configure(scrollregion=self.liked_songs_manager.canvas.bbox("all"))
         self.playlist_manager.canvas.configure(scrollregion=self.playlist_manager.canvas.bbox("all"))
         self.library_canvas.configure(scrollregion=self.library_canvas.bbox("all"))
+        self.genre_tracks_canvas.configure(scrollregion=self.genre_tracks_canvas.bbox("all"))
 
     def scroll_with_mouse(self, event):
         """Cuộn danh sách bằng chuột giữa"""

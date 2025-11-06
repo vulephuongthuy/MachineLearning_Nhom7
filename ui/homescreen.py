@@ -1152,6 +1152,7 @@ class Song:
         self.recommendation_canvas_id = self.canvas.create_window(0, 40, window=self.recommendation_canvas,
                                                                   anchor="nw", width=900, height=210)
         self.recommendation_canvas.configure(xscrollcommand=lambda *args: None)
+
         # Frame chứa các recommendation item (sắp xếp ngang)
         self.recommendation_frame = Frame(self.recommendation_canvas,bg="#F7F7DC")
         self.recommendation_canvas.create_window((0, 0),window=self.recommendation_frame,
@@ -1250,12 +1251,12 @@ class Song:
             # Tạo container chính
             self.artist_container = Frame(self.canvas, bg="#F7F7DC")
 
-            # 🎯 VỊ TRÍ TRÁI HƠN - GIẢM x XUỐNG
+            #   VỊ TRÍ TRÁI HƠN - GIẢM x XUỐNG
             self.artist_canvas_id = self.canvas.create_window(
-                0, 540,  # 🆕 x=30 (trái hơn), y=540 (sau text "Recommended Artists")
+                0, 540,
                 window=self.artist_container,
                 anchor="nw",
-                width=900,  # 🆕 Tăng width lên để chiếm nhiều không gian hơn
+                width=900,
                 height=200
             )
 
@@ -1264,14 +1265,14 @@ class Song:
                 self.artist_container,
                 bg="#F7F7DC",
                 height=180,
-                width=900,  # 🆕 Đồng bộ width
+                width=900,
                 highlightthickness=0
             )
             self.artist_canvas.pack(fill="both", expand=True)
 
             # Frame chứa các artist item
             self.artist_frame = Frame(self.artist_canvas, bg="#F7F7DC")
-            self.artist_canvas.create_window((0, 0), window=self.artist_frame, anchor="nw")
+            self.artist_canvas.create_window((0, 20), window=self.artist_frame, anchor="nw")
 
             # MOUSE WHEEL CHO SCROLL NGANG
             def on_artist_mousewheel(event):
@@ -1292,18 +1293,13 @@ class Song:
             self.artist_frame.bind("<Enter>", on_artist_enter)
             self.artist_frame.bind("<Leave>", on_artist_leave)
 
-            # Bind drag scroll (kéo chuột để scroll)
-            # self.artist_canvas.bind("<ButtonPress-1>", self.start_artist_drag)
-            # self.artist_canvas.bind("<B1-Motion>", self.do_artist_drag)
-            # self.artist_canvas.bind("<ButtonRelease-1>", self.stop_artist_drag)
-
             # Tải dữ liệu
             self.load_recommended_artists()
 
-            print("✅ Artist recommendations đã được tạo thành công")
+            print(" Artist recommendations đã được tạo thành công")
 
         except Exception as e:
-            print(f"❌ Lỗi khi tạo artist recommendations: {e}")
+            print(f" Lỗi khi tạo artist recommendations: {e}")
 
             # MOUSE WHEEL CHO SCROLL NGANG
             def on_artist_mousewheel(event):
@@ -1329,12 +1325,12 @@ class Song:
             # Tải dữ liệu
             self.load_recommended_artists()
 
-            print("✅ Artist recommendations đã được tạo thành công")
+            print(" Artist recommendations đã được tạo thành công")
 
         except Exception as e:
-            print(f"❌ Lỗi khi tạo artist recommendations: {e}")
+            print(f" Lỗi khi tạo artist recommendations: {e}")
 
-            # 🆕 QUAN TRỌNG: ENABLE MOUSE WHEEL CHO SCROLL NGANG
+            #  QUAN TRỌNG: ENABLE MOUSE WHEEL CHO SCROLL NGANG
             def on_artist_mousewheel(event):
                 # Scroll ngang khi dùng mouse wheel trên artist area
                 self.artist_canvas.xview_scroll(-1 * (event.delta // 120), "units")
@@ -1369,12 +1365,12 @@ class Song:
     def load_recommended_artists(self):
         """Tải danh sách nghệ sĩ được gợi ý"""
         if not session.current_user:
-            print("⚠️ Chưa có user đăng nhập")
+            print("Chưa có user đăng nhập")
             return
 
         user_id = session.current_user.get("userId")
         if not user_id:
-            print("⚠️ Không tìm thấy user ID")
+            print("Không tìm thấy user ID")
             return
 
         # Kiểm tra cache trước
@@ -1386,7 +1382,7 @@ class Song:
         def load_data():
             try:
                 from Recommendation_artist import recommend_for_user
-                print(f"🔄 Đang tải recommendations cho user: {user_id}")
+                print(f" Đang tải recommendations cho user: {user_id}")
                 recommendations = recommend_for_user(user_id)
 
                 # Lưu vào cache
@@ -1395,18 +1391,18 @@ class Song:
                     'data': recommendations
                 }
 
-                print(f"✅ Đã tải được {len(recommendations)} recommendations")
+                print(f" Đã tải được {len(recommendations)} recommendations")
                 self.controller.after(0, lambda: self.display_artists(recommendations))
 
             except Exception as e:
-                print(f"❌ Lỗi khi load recommendations: {e}")
+                print(f" Lỗi khi load recommendations: {e}")
 
         threading.Thread(target=load_data, daemon=True).start()
 
     def display_artists(self, recommendations):
         """Hiển thị danh sách nghệ sĩ - PHIÊN BẢN ĐƠN GIẢN"""
         if not hasattr(self, 'artist_frame') or not self.artist_frame.winfo_exists():
-            print("⚠️ artist_frame không tồn tại")
+            print(" artist_frame không tồn tại")
             return
 
         # Xóa items cũ
@@ -1424,7 +1420,7 @@ class Song:
             no_data_label.pack(pady=20)
             return
 
-        print(f"🎨 Đang hiển thị {len(recommendations)} nghệ sĩ")
+        print(f"Đang hiển thị {len(recommendations)} nghệ sĩ")
 
         # Kích thước và khoảng cách
         item_width = 160
@@ -1439,10 +1435,10 @@ class Song:
         # Tính toán total width
         total_width = len(recommendations[:8]) * (item_width + item_margin)
 
-        # 🎯 CẤU HÌNH KÍCH THƯỚC CHO SCROLL NGANG
+        # CẤU HÌNH KÍCH THƯỚC CHO SCROLL NGANG
         self.artist_frame.config(width=total_width, height=item_height)
 
-        # 🎯 CẬP NHẬT SCROLLREGION - QUAN TRỌNG!
+        # CẬP NHẬT SCROLLREGION - QUAN TRỌNG!
         self.artist_frame.update_idletasks()
         self.artist_canvas.config(
             scrollregion=(0, 0, total_width, item_height)
@@ -1556,7 +1552,7 @@ class Song:
 
     def on_artist_click(self, artist_name):
         """Xử lý khi click vào nghệ sĩ - CẬP NHẬT TITLE"""
-        print(f"🎵 Clicked artist: {artist_name}")
+        print(f" Clicked artist: {artist_name}")
 
         # Gọi phương thức của MainScreen và cập nhật title
         if hasattr(self.parent, 'show_artist_detail'):
@@ -2167,7 +2163,7 @@ class Song:
         """Khởi tạo AI Recommender"""
         try:
             if not session.current_user:
-                print("❌ No user session")
+                print(" No user session")
                 self.ai_components = None
                 return
 
@@ -2181,16 +2177,16 @@ class Song:
                 )
                 current_mood_id = latest_mood.get("moodID",
                                                   1) if latest_mood else 1
-                print(f"🎭 Latest moodID for user {user_id}: {current_mood_id}")
+                print(f" Latest moodID for user {user_id}: {current_mood_id}")
             except Exception as e:
-                print(f"❌ Error getting mood from MongoDB: {e}")
+                print(f"Error getting mood from MongoDB: {e}")
                 current_mood_id = 1
 
             # 2. Load model từ zip file
             zip_path = "models/recommend_for_today.zip"
 
             if not os.path.exists(zip_path):
-                print(f"❌ Model zip file not found: {zip_path}")
+                print(f" Model zip file not found: {zip_path}")
                 self.ai_components = None
                 return
 
@@ -2210,7 +2206,7 @@ class Song:
                         import joblib
                         components = joblib.load(model_path)
                     except Exception as e:
-                        print(f"❌ Joblib load failed: {e}")
+                        print(f" Joblib load failed: {e}")
                         self.ai_components = None
                         return
 

@@ -16,7 +16,7 @@ from PIL.Image import Resampling
 from customtkinter import CTkButton
 
 import session
-from Recommendation import *
+from Recommendation_mood import *
 from functions import *
 from ui.Login_UI import ProfileFrame
 import zipfile

@@ -22,9 +22,8 @@ class ArtistDetailFrame(Frame):
 
         # CHỈ chiếm phần content area, không đè lên toolbar và search
         self.configure(bg="#F7F7DC", width=900, height=410)
-        self.place(x=105, y=90)
+        self.place(x=100, y=90)
 
-        # TẠO SCROLLABLE FRAME ĐÚNG CÁCH
         self.setup_scrollable_frame()
 
         # QUAN TRỌNG: Đăng ký frame với MainScreen để quản lý
@@ -93,7 +92,7 @@ class ArtistDetailFrame(Frame):
     def show(self):
         """Hiển thị frame"""
         if not self._is_destroyed:
-            self.place(x=105, y=90)
+            self.place(x=100, y=90)
 
     def setup_ui(self):
         if self._is_destroyed:

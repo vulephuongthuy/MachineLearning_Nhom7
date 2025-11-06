@@ -733,7 +733,7 @@ class MainScreen(Frame):
     #         print(f"❌ Lỗi load cache: {e}")
     #         self.purchased_tracks_cache = set()
 
-class Button():
+class Button:
     def __init__(self, parent, canvas, song):
         super().__init__()
         self.parent = parent
@@ -881,6 +881,9 @@ class Button():
 
     def toggle_view(self, view_type):
         """Chuyển đổi giữa danh sách bài hát, lịch sử nghe và danh sách yêu thích"""
+        for widget in self.canvas.winfo_children():
+            if isinstance(widget, Label) and hasattr(widget, 'image'):
+                widget.destroy()
         # Ẩn tất cả danh sách trước khi hiển thị danh sách mới
         self.hide_songs_list()
         self.hide_history()
@@ -1159,7 +1162,7 @@ class Button():
         if hasattr(self.parent, "player") and self.parent.player is not None:
             self.parent.player.audio_set_volume(self.current_volume)
 
-class Song():
+class Song:
     def __init__(self, parent, controller, button=None):
         super().__init__()
         self.controller = controller
@@ -1186,6 +1189,8 @@ class Song():
         self.last_seek_time = 0
 
         self.playlist_manager = None
+        self.current_playing_playlist = None  # Tên playlist đang phát
+        self.current_playing_manager = None
 
         self.current_song_image = None
         self.clip_canvas = None
@@ -2824,7 +2829,7 @@ class Song():
         """Hiển thị bài hát sở hữu"""
         self.owned_songs_manager.show()
         self.load_owned_songs_from_db()
-
+        self.sync_play_state()
         # XÓA HEADER KHI Ở CHẾ ĐỘ ADD SONG
         if self.parent.buttons.current_title == "Add song":
             self.parent.after(100, lambda: [
@@ -2840,6 +2845,7 @@ class Song():
         """Hiển thị bài hát yêu thích"""
         self.liked_songs_manager.show()
         self.load_liked_songs_from_db()
+        self.sync_play_state()
     def hide_liked_songs(self):
         """Ẩn bài hát yêu thích"""
         self.liked_songs_manager.hide()
@@ -2933,15 +2939,17 @@ class Song():
         if hasattr(self.parent, 'buttons'):
             self.parent.buttons._last_playlist_name = playlist_name
 
-        # Sử dụng playlist_manager
-        if self.playlist_manager:
-            self.playlist_manager.load_from_db("playlist",
-                                               playlist_name=playlist_name)
-            self.playlist_manager.show()
-            self.parent.buttons.current_title = playlist_name
-            self.parent.buttons.create_title()
-        else:
+        if not self.playlist_manager:
             print("❌ playlist_manager not found in Song class")
+            return
+
+        self.playlist_manager.load_from_db("playlist", playlist_name=playlist_name)
+        self.playlist_manager.show()
+        self.parent.buttons.current_title = playlist_name
+        self.parent.buttons.create_title()
+
+        # Đồng bộ trạng thái play/pause khi mở playlist
+        self.sync_play_state()
 
     def update_library_display(self):
         """Cập nhật hiển thị thư viện"""
@@ -3078,6 +3086,17 @@ class Song():
             print(f"❌ Lỗi khi lưu playlist: {e}")
             return False
 
+    def sync_play_state(self):
+        """Đồng bộ trạng thái phát nhạc giữa tất cả danh sách"""
+        managers = [
+            self.owned_songs_manager,
+            self.liked_songs_manager,
+            self.playlist_manager,
+        ]
+        for manager in managers:
+            if hasattr(manager, "_update_play_button"):
+                manager._update_play_button()
+
     def on_song_click(self, track_id):
         user_id = session.current_user.get("userId")
         db = self.controller.get_db()
@@ -3155,10 +3174,34 @@ class Song():
             self.scroll_text(self.clip_canvas, artist_text, clip_width)
             print(
                 f"🎵 Đã hiển thị bài hát: {song.get('trackName')} - {song.get('artistName')}")
+            # XÁC ĐỊNH CONTEXT TỪ MANAGER ĐANG HIỂN THỊ
+            active_manager = self._get_active_manager()
+            playlist_name = getattr(self.parent.buttons, 'current_title', None)
+            self.set_playing_context(active_manager, playlist_name)
+            self.current_playing_manager = active_manager
+            self.current_playing_playlist = playlist_name
             self.play_song(song)
 
         except Exception as e:
             print(f"❌ Lỗi khi truy vấn bài hát từ MongoDB: {e}")
+
+    def _get_active_manager(self):
+        managers = [ self.owned_songs_manager,
+                    self.liked_songs_manager, self.playlist_manager]
+        return next((m for m in managers if m.canvas.winfo_ismapped()), None)
+
+    def update_all_play_buttons(self):
+        # kept for backward compatibility - use sync_play_state on managers instead
+        self.sync_play_state()
+
+    def set_playing_context(self, manager=None, playlist_name=None):
+        self.current_playing_manager = manager
+        self.current_playing_playlist = playlist_name
+        # cập nhật UI
+        if hasattr(self.parent, 'buttons'):
+            # lưu tên playlist hiện tại lên buttons
+            self.parent.buttons._last_playlist_name = playlist_name
+        self.sync_play_state()
 
     def scroll_text(self, canvas, text_id, visible_width, speed=2, delay=50):
         """Hiệu ứng trôi chữ liên tục trong vùng [x_min, x_max]."""
@@ -3295,15 +3338,22 @@ class Song():
             self.total_time = 30
             self.paused_time = 0
 
-            # Đổi icon Play → Pause
-            self.fixed_canvas.itemconfig(
-                self.parent.buttons.buttons["play"],
-                image=self.parent.buttons.image_cache["pause"]
-            )
-            self.parent.buttons.update_progress_bar()
+            try:
+                self.parent.buttons.update_progress_bar()
+            except Exception as e:
+                print(f"⚠️ Lỗi cập nhật thanh tiến trình: {e}")
 
-            print(
-                f"🎶 Playing now: {song.get('trackName')} - {song.get('artistName')}")
+            # Đổi icon ở main button
+            try:
+                self.fixed_canvas.itemconfig(
+                    self.parent.buttons.buttons["play"],
+                    image=self.parent.buttons.image_cache["pause"]
+                )
+            except Exception:
+                pass
+
+            self.sync_play_state()
+            print(f"🎶 Playing: {song.get('trackName')} - {song.get('artistName')}")
             self.check_song_end()
             self.fixed_canvas.after(500, lambda: self.save_to_history(song))
             self.update_love_button_state()
@@ -3338,16 +3388,7 @@ class Song():
             c.itemconfig(play_button,
                          image=self.parent.buttons.image_cache["pause"])
             self.parent.buttons.update_progress_bar()
-
-    def _update_current_playlist_button(self):
-        """Cập nhật nút play của playlist đang hiển thị"""
-        managers = [self.owned_songs_manager,
-                    self.liked_songs_manager, self.playlist_manager]
-
-        for manager in managers:
-            if manager.canvas.winfo_ismapped() and hasattr(manager, '_update_play_button'):
-                manager._update_play_button()
-                break
+        self.sync_play_state()
 
     def stop_music(self):
         """Dừng phát nhạc hoàn toàn"""
@@ -3458,7 +3499,6 @@ class SongListManager:
 
         self.song_list = []
         self.image_cache = {}
-        # self.is_playing_playlist = False
         self.play_button_label = None
 
         self.add_song_canvas = None
@@ -3467,31 +3507,23 @@ class SongListManager:
         self.search_add_entry = None
 
         # Tạo canvas cho song
-        self.canvas = Canvas(self.parent, width=1000, height=408, bg="#F7F7DC",
-                             bd=0, highlightthickness=0)
+        self.canvas = Canvas(self.parent, width=1000, height=408, bg="#F7F7DC", bd=0, highlightthickness=0)
         self.canvas.place(x=103, y=90)
         self.canvas.place_forget()
 
         self.frame = Frame(self.canvas, bg="#F7F7DC")
-        self.canvas_window = self.canvas.create_window((0, 0),
-                                                       window=self.frame,
-                                                       anchor="nw", width=844)
+        self.canvas_window = self.canvas.create_window((0, 0), window=self.frame, anchor="nw", width=844)
 
         # Bind sự kiện cuộn
-        self.canvas.bind("<Enter>",
-                         lambda e: self.canvas.bind_all("<MouseWheel>",
-                                                        self.scroll_with_mouse))
-        self.canvas.bind("<Leave>",
-                         lambda e: self.canvas.unbind_all("<MouseWheel>"))
-        self.frame.bind("<Configure>", lambda e: self.canvas.configure(
-            scrollregion=self.canvas.bbox("all")))
+        self.canvas.bind("<Enter>", lambda e: self.canvas.bind_all("<MouseWheel>", self.scroll_with_mouse))
+        self.canvas.bind("<Leave>", lambda e: self.canvas.unbind_all("<MouseWheel>"))
+        self.frame.bind("<Configure>", lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
 
     def scroll_with_mouse(self, event):
         """Cuộn bằng chuột"""
         self.canvas.yview_scroll(-1 * (event.delta // 120), "units")
 
-    def load_from_db(self, collection_name, user_field="userId",
-                     sort_field=None, playlist_name=None):
+    def load_from_db(self, collection_name, user_field="userId", sort_field=None, playlist_name=None):
         db = self.controller.get_db()
         if not session.current_user:
             return
@@ -3521,8 +3553,7 @@ class SongListManager:
                         "artworkUrl100": doc.get("artworkUrl100",
                                                  "assets/default.png")
                     })
-                print(
-                    f"✅ Đã tải {len(self.song_list)} bài hát từ {collection_name}")
+                print(f"✅ Đã tải {len(self.song_list)} bài hát từ {collection_name}")
             self.update_display(is_playlist=(collection_name == "playlist"))
             self.show()
         except Exception as e:
@@ -3531,20 +3562,17 @@ class SongListManager:
     def _load_playlist(self, db, playlist_name):
         username = session.current_user.get("username")
         user_doc = db.db["user"].find_one({"username": username})
-        playlist = next((p for p in user_doc.get("playlists", []) if
-                         p["name"] == playlist_name), None)
+        playlist = next((p for p in user_doc.get("playlists", []) if p["name"] == playlist_name), None)
 
         self.song_list = []
         for song_data in playlist.get("songs", []):
-            track = db.db["tracks"].find_one(
-                {"trackId": song_data.get("trackId")})
+            track = db.db["tracks"].find_one({"trackId": song_data.get("trackId")})
             if track:
                 self.song_list.append({
                     "trackId": track.get("trackId"),
                     "trackName": track.get("trackName", "Unknown"),
                     "artistName": track.get("artistName", "Unknown Artist"),
-                    "artworkUrl100": track.get("artworkUrl100",
-                                               "assets/default.png")
+                    "artworkUrl100": track.get("artworkUrl100", "assets/default.png")
                 })
         self.frame.update_idletasks()
         self.canvas.config(scrollregion=self.canvas.bbox("all"))
@@ -3553,10 +3581,8 @@ class SongListManager:
         for widget in self.frame.winfo_children():
             widget.destroy()
 
-        is_add_mode = hasattr(self.parent,
-                              'buttons') and self.parent.buttons.current_title == "Add song"
-        if not is_add_mode and ((
-                                        self.song_list and self.list_type != "history") or self.list_type == "playlist"):
+        is_add_mode = hasattr(self.parent, 'buttons') and self.parent.buttons.current_title == "Add song"
+        if not is_add_mode and ((self.song_list and self.list_type != "history") or self.list_type == "playlist"):
             self._create_header_buttons()
 
         # Hiển thị thông báo nếu không có bài hát
@@ -3597,16 +3623,14 @@ class SongListManager:
 
         for key, icon_file, callback in icons:
             icon_img = PhotoImage(file=relative_to_assets(icon_file))
-            icon_label = Label(header_frame, image=icon_img, bg="#F7F7DC",
-                               cursor="hand2")
+            icon_label = Label(header_frame, image=icon_img, bg="#F7F7DC", cursor="hand2")
             icon_label.image = icon_img
             icon_label.pack(side="left", padx=15)
             icon_label.bind("<Button-1>", callback)
 
             if key == "play":
                 self.play_button_label = icon_label
-                self.play_icon, self.pause_icon = icon_img, PhotoImage(
-                    file=relative_to_assets("pause.png"))
+                self.play_icon, self.pause_icon = icon_img, PhotoImage(file=relative_to_assets("pause.png"))
 
     def add_to_playlist(self):
         """Mở giao diện owned_songs để thêm vào playlist"""
@@ -3618,14 +3642,12 @@ class SongListManager:
 
         canvas = self.parent.buttons.canvas
         down_icon_img = PhotoImage(file=relative_to_assets("down.png"))
-        self.down_icon_label = Label(canvas, image=down_icon_img, bg="#F7F7DC",
-                                     cursor="hand2")
+        self.down_icon_label = Label(canvas, image=down_icon_img, bg="#F7F7DC", cursor="hand2")
         self.down_icon_label.image = down_icon_img
         self.down_icon_label.place(x=300, y=33)
 
         # Bind sự kiện click để quay lại
-        self.down_icon_label.bind("<Button-1>",
-                                  lambda e: self._return_from_add_mode())
+        self.down_icon_label.bind("<Button-1>", lambda e: self._return_from_add_mode())
 
         self.parent.songs.show_owned_songs()
 
@@ -3645,21 +3667,14 @@ class SongListManager:
             # SỬA: Kiểm tra và lấy tên playlist từ nhiều nguồn
             playlist_name = None
 
-            # Ưu tiên 1: từ original_playlist_name
-            if hasattr(self,
-                       'original_playlist_name') and self.original_playlist_name:
+            if hasattr(self, 'original_playlist_name') and self.original_playlist_name:
                 playlist_name = self.original_playlist_name
-            # Ưu tiên 2: từ parent.buttons.current_title (trước khi chuyển sang "Add song")
-            elif hasattr(self.parent, 'buttons') and hasattr(
-                    self.parent.buttons, 'current_title'):
-                # Tìm trong lịch sử hoặc lưu trữ tên playlist gốc
-                playlist_name = getattr(self.parent.buttons,
-                                        '_last_playlist_name', None)
+            elif hasattr(self.parent, 'buttons') and hasattr(self.parent.buttons, 'current_title'):
+                playlist_name = getattr(self.parent.buttons, '_last_playlist_name', None)
 
             if not playlist_name:
                 print("❌ Không tìm thấy tên playlist đích")
-                messagebox.showerror("Error",
-                                     "Cannot determine target playlist!")
+                messagebox.showerror("Error", "Cannot determine target playlist!")
                 return
 
             db = self.controller.get_db()
@@ -3695,10 +3710,7 @@ class SongListManager:
             )
 
             if result.modified_count > 0:
-                messagebox.showinfo("Success",
-                                    f"Added '{track['trackName']}' to {playlist_name}!")
-                # Quay lại playlist
-                self._return_to_playlist(playlist_name)
+                messagebox.showinfo("Success", f"Added '{track['trackName']}' to {playlist_name}!")
             else:
                 messagebox.showerror("Error", "Failed to add song to playlist!")
         except Exception as e:
@@ -3758,13 +3770,10 @@ class SongListManager:
 
         text_color = "#89A34E"
         title_label = Label(text_frame, text=song.get("trackName", "Unknown"),
-                            font=("Coiny Regular", 18), fg=text_color,
-                            bg="#F7F7DC")
+                            font=("Coiny Regular", 18), fg=text_color, bg="#F7F7DC")
         title_label.pack(anchor="w")
-        artist_label = Label(text_frame,
-                             text=song.get("artistName", "Unknown Artist"),
-                             font=("Newsreader Regular", 14), fg=text_color,
-                             bg="#F7F7DC")
+        artist_label = Label(text_frame, text=song.get("artistName", "Unknown Artist"),
+                             font=("Newsreader Regular", 14), fg=text_color, bg="#F7F7DC")
         artist_label.pack(anchor="w")
 
         track_id = song.get("trackId")
@@ -3772,30 +3781,26 @@ class SongListManager:
                 self.parent.buttons.current_title == "Add song"):
 
             add_icon_img = PhotoImage(file=relative_to_assets("add 1.png"))
-            add_btn = Label(frame, image=add_icon_img, bg="#F7F7DC",
-                            cursor="hand2")
+            add_btn = Label(frame, image=add_icon_img, bg="#F7F7DC", cursor="hand2")
             add_btn.image = add_icon_img
             add_btn.pack(side="right", padx=10)
 
             # SỬA LẠI CÁCH BIND - DÙNG HÀM RIÊNG ĐỂ TRÁNH LỖI SCOPE
             def add_handler(event, tid=track_id):
-                current_playlist = getattr(self, 'original_playlist_name',
-                                           'Unknown')
-                print(
-                    f"🎯 Adding song with track_id: {tid} to playlist: {current_playlist}")
-                print(
-                    f"🎯 Debug - self.original_playlist_name: {getattr(self, 'original_playlist_name', 'NOT SET')}")
                 self._add_song_to_playlist_by_id(tid)
 
             add_btn.bind("<Button-1>", add_handler)
 
-            # Gán track_id và bind sự kiện click bài hát (giữ nguyên)
-        title_label._track_id = track_id
-        artist_label._track_id = track_id
-        for widget in (frame, img_label, title_label, artist_label):
-            widget.bind("<Button-1>",
-                        lambda e, tid=track_id: self.parent.songs.on_song_click(
-                            tid))
+        else:
+            # 🎵 Ở chế độ bình thường: click bài để phát
+            def on_click(e, tid=track_id):
+                self.parent.songs.on_song_click(tid)
+                self.parent.songs.sync_play_state()
+
+            title_label._track_id = track_id
+            artist_label._track_id = track_id
+            for widget in (frame, img_label, title_label, artist_label):
+                widget.bind("<Button-1>", on_click)
 
     def toggle_play_playlist(self):
         """Toggle play/pause cho playlist và đồng bộ 2 nút"""
@@ -3806,17 +3811,36 @@ class SongListManager:
                 self.parent.songs.on_song_click(first_song["trackId"])
         else:
             self.parent.songs.play_pause()
-        self._update_play_button()
+        self.paret.songs.sync_play_state()
 
     def _update_play_button(self):
-        """Cập nhật nút play của playlist hiện tại"""
-        if hasattr(self, 'play_button_label'):
-            if self.parent.songs.is_playing:
+        """Đồng bộ icon play/pause trong từng danh sách hoặc playlist"""
+        if not hasattr(self, "play_button_label") or not self.play_button_label:
+            return
+
+        songs = self.parent.songs
+
+        # Check xem có phải đây là danh sách hiện đang phát không
+        is_current_manager = (songs.current_playing_manager == self)
+        is_current_playlist = (
+                songs.current_playing_playlist
+                == getattr(self.parent.buttons, "current_title", None)
+        )
+
+        # Nếu là playlist → check tên playlist
+        if getattr(self, "list_type", "") == "playlist":
+            is_current = is_current_playlist
+        else:
+            # Nếu là liked/owned/history → check theo manager
+            is_current = is_current_manager
+
+        try:
+            if songs.is_playing and is_current:
                 self.play_button_label.config(image=self.pause_icon)
-                self.play_button_label.image = self.pause_icon
             else:
                 self.play_button_label.config(image=self.play_icon)
-                self.play_button_label.image = self.play_icon
+        except Exception as e:
+            print(f"⚠️ Lỗi cập nhật nút play: {e}")
 
     def shuffle_playlist(self):
         """Xáo trộn playlist"""
@@ -3824,15 +3848,15 @@ class SongListManager:
         if self.song_list:
             random.shuffle(self.song_list)
             self.parent.songs.on_song_click(self.song_list[0]["trackId"])
-            self._update_play_button()
+            self.parent.songs.sync_play_state()
 
     def show(self):
         """Hiển thị canvas"""
         self.canvas.place(x=103, y=90)
         self.parent.songs.fixed_canvas.place(x=50, y=522)
-        self.frame.update_idletasks()
-        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
-        self.canvas.yview_moveto(0.0)
+        # self.frame.update_idletasks()
+        # self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        # self.canvas.yview_moveto(0.0)
 
     def hide(self):
         """Ẩn canvas"""

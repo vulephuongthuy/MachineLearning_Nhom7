@@ -893,6 +893,8 @@ class Button():
         if view_type == "profile":
             self.parent.open_profile()
         elif view_type == "home":
+            self.parent.songs.load_ai_recommendations() if hasattr(
+                self.parent.songs, 'load_ai_recommendations') else None
             self.show_songs_list()
             self.current_title = "Home"
         elif view_type == "history":

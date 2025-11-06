@@ -1,10 +1,11 @@
 import datetime as dt
+import shutil
 from datetime import datetime
 import threading
 import time
 import tkinter
 from tkinter import Menu, PhotoImage, Entry, Scale, Canvas, Frame, \
-    messagebox, Label
+    messagebox, Label, filedialog
 from tkinter.constants import HORIZONTAL
 from urllib.request import urlopen
 import pymongo
@@ -2911,7 +2912,7 @@ class Song:
             self.parent.buttons.current_title = "Liked Songs"
         self.parent.buttons.create_title()
 
-    def create_playlist_card(self, x, y, label, image_file="chăm hoa 1.png"):
+    def create_playlist_card(self, x, y, label, image_file="playlist.jpg"):
         img = load_image(image_file, size=(175, 150), round_corner=10)
         img_id = None
         if img:
@@ -2924,6 +2925,46 @@ class Song:
         self.library_canvas.tag_bind(img_id, "<Button-1>", lambda e, name=label: self.show_playlist(name))
         self.library_canvas.tag_bind(text_id, "<Button-1>", lambda e, name=label: self.show_playlist(name))
 
+        self.library_canvas.tag_bind(img_id, "<Button-3>",
+                                     lambda e, name=label: self.show_playlist_context_menu(e, name))
+        self.library_canvas.tag_bind(text_id, "<Button-3>",
+                                     lambda e, name=label: self.show_playlist_context_menu(e, name))
+
+    def show_playlist_context_menu(self, event, playlist_name):
+        """Hiển thị menu chuột phải cho playlist"""
+        menu = Menu(self.library_canvas, tearoff=0, bg="#FEFBE5", fg="#F2829E", font=("Inter", 12, "bold"))
+
+        menu.add_command(label="Delete Playlist", command=lambda: self.delete_playlist(playlist_name))
+
+        try:
+            menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            menu.grab_release()
+
+    def delete_playlist(self, playlist_name):
+        """Xóa playlist"""
+        result = messagebox.askyesno("Confirm Delete", f"Xóa playlist '{playlist_name}'?")
+
+        if result:
+            try:
+                db = self.controller.get_db()
+                username = session.current_user.get("username")
+
+                # Xóa playlist khỏi database
+                result = db.db["user"].update_one(
+                    {"username": username},
+                    {"$pull": {"playlists": {"name": playlist_name}}}
+                )
+
+                if result.modified_count > 0:
+                    messagebox.showinfo("Success", f"Đã xóa playlist '{playlist_name}'")
+                    # Refresh hiển thị
+                    self.update_library_display()
+                else:
+                    messagebox.showerror("Error", "Không thể xóa playlist")
+
+            except Exception as e:
+                messagebox.showerror("Error", f"Lỗi khi xóa playlist: {str(e)}")
     def display_playlists(self):
         for i, playlist in enumerate(self.playlists):
             if i < 3:
@@ -3728,7 +3769,7 @@ class SongListManager:
                 self.parent.songs.on_song_click(first_song["trackId"])
         else:
             self.parent.songs.play_pause()
-        self.paret.songs.sync_play_state()
+        self.parent.songs.sync_play_state()
 
     def _update_play_button(self):
         """Đồng bộ icon play/pause trong từng danh sách hoặc playlist"""

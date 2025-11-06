@@ -22,7 +22,7 @@ class ArtistDetailFrame(Frame):
 
         # CHỈ chiếm phần content area, không đè lên toolbar và search
         self.configure(bg="#F7F7DC", width=900, height=410)
-        self.place(x=105, y=100)
+        self.place(x=105, y=90)
 
         # TẠO SCROLLABLE FRAME ĐÚNG CÁCH
         self.setup_scrollable_frame()

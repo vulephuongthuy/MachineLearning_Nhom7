@@ -1,10 +1,124 @@
 import pandas as pd
 
+def load_data_from_mongodb(db_connection):
+    """Load và xử lý data - SIÊU NGẮN GỌN & NHANH"""
+
+    # Định nghĩa projections
+    projections = {
+        'tracks': {'trackId': 1, 'artistId': 1, 'trackName': 1,
+                   'releaseDate': 1, 'artistName': 1, 'primaryGenreName': 1},
+        'user': {'userId': 1},
+        'user_favorite': {'userId': 1, 'trackId': 1, 'artistName': 1, 'primaryGenreName': 1},
+        'user_rating': {'userId': 1, 'trackId': 1, 'rating': 1},
+        'purchase': {'userId': 1, 'trackId': 1},
+        'mood_tracking_history': {'userId': 1, 'moodID': 1, 'timestamp': 1},
+        'song_mood_community': {'trackId': 1, 'mood_community': 1}
+    }
+
+    # Load tất cả data trong 1 khối - SIÊU NGẮN
+    collections = ['tracks', 'user', 'user_favorite', 'user_rating', 'purchase',
+                   'mood_tracking_history', 'song_mood_community']
+    tracks, users, favorites, ratings, purchased, mood_hist, song_mood = [
+        pd.DataFrame(list(db_connection.db[col].find({}, projections[col])))
+        for col in collections
+    ]
+
+    # Convert userId to string - NGẮN GỌN
+    for df in [favorites, ratings, purchased, mood_hist, users]:
+        df['userId'] = df['userId'].astype(str)
+
+    # Tính toán chính - GIỮ NGUYÊN LOGIC
+    favorites_with_artist = favorites.merge(tracks[['trackId', 'artistId']],
+                                            on='trackId', how='left')
+    rating_avg = ratings.groupby("trackId")["rating"].mean().reset_index()
+    rating_avg["rating_score"] = rating_avg["rating"] / 5
+
+    df = favorites_with_artist.merge(song_mood[["trackId", "mood_community"]],
+                                     on="trackId", how="left")
+    df = df.merge(rating_avg[["trackId", "rating_score"]], on="trackId",
+                  how="left")
+
+    # Recency
+    tracks["releaseDate"] = pd.to_datetime(tracks["releaseDate"],
+                                           errors="coerce").dt.tz_localize(None)
+    tracks["recency"] = (pd.Timestamp.now() - tracks["releaseDate"]).dt.days
+    df = df.merge(tracks[["trackId", "recency"]], on="trackId", how="left")
+    df["recency_score"] = 1 / (1 + df["recency"].fillna(df["recency"].max()))
+
+    # Current mood
+    current_mood = (mood_hist.sort_values("timestamp", ascending=False).groupby(
+        "userId").first().reset_index()[["userId", "moodID"]])
+    current_mood['userId'] = current_mood['userId'].astype(str)
+    df['userId'] = df['userId'].astype(str)
+    df = df.merge(current_mood, on="userId", how="left")
+
+    # CF score
+    cf_counts = favorites_with_artist.groupby("trackId")[
+        "userId"].count().reset_index()
+    cf_counts.columns = ["trackId", "cf_score"]
+    cf_counts["cf_score"] = cf_counts["cf_score"] / cf_counts["cf_score"].max()
+    df = df.merge(cf_counts, on="trackId", how="left")
+
+    # Artist/genre features
+    user_artist_counts = favorites_with_artist.groupby(
+        ['userId', 'artistId']).size().reset_index(name='artist_count')
+    user_genre_counts = favorites_with_artist.groupby(
+        ['userId', 'primaryGenreName']).size().reset_index(name='genre_count')
+    user_total_favs = favorites_with_artist.groupby(
+        'userId').size().reset_index(name='total_favs')
+
+    df = df.merge(user_artist_counts, on=['userId', 'artistId'], how='left')
+    df = df.merge(user_genre_counts, on=['userId', 'primaryGenreName'],
+                  how='left')
+    df = df.merge(user_total_favs, on='userId', how='left')
+
+    df['artist_count'] = df['artist_count'].fillna(0)
+    df['genre_count'] = df['genre_count'].fillna(0)
+    df['total_favs'] = df['total_favs'].fillna(1)
+
+    df["artist_similarity"] = (
+                0.7 * (df['artist_count'] > 0).astype(float) + 0.3 * (
+                    df['artist_count'] / df['total_favs']))
+    df["genre_similarity"] = (
+                0.7 * (df['genre_count'] > 0).astype(float) + 0.3 * (
+                    df['genre_count'] / df['total_favs']))
+
+    df = df.drop(['artist_count', 'genre_count', 'total_favs'], axis=1)
+
+    # Mood similarity
+    df["mood_similarity"] = df.apply(
+        lambda row: 1.0 if row["moodID"] == row["mood_community"] else 0.0,
+        axis=1)
+
+    # Fill NaN
+    df = df.fillna({"rating_score": 0, "recency_score": 0.5, "cf_score": 0,
+                    "mood_similarity": 0, "artist_similarity": 0,
+                    "genre_similarity": 0})
+
+    # Tracks with features
+    feature_cols = ["recency_score", "rating_score", "artist_similarity",
+                    "genre_similarity"]
+    features_to_merge = ['trackId'] + feature_cols + ['mood_community']
+    tracks_with_features = tracks.merge(
+        df[features_to_merge].drop_duplicates(subset=['trackId']), on='trackId',
+        how='left')
+
+    for feat in feature_cols:
+        tracks_with_features[feat] = tracks_with_features[feat].fillna(0)
+    tracks_with_features['mood_community'] = tracks_with_features[
+        'mood_community'].fillna(1)
+
+    return {
+        'tracks': tracks_with_features, 'users': users, 'favorites': favorites,
+        'ratings': ratings,
+        'purchased': purchased, 'mood_hist': mood_hist, 'song_mood': song_mood,
+        'favorites_with_artist': favorites_with_artist, 'df': df,
+        'current_mood': current_mood
+    }
 
 def is_new_user(user_id, favorites_with_artist):
     """Kiểm tra user có phải là user mới không - GIỐNG GỐC"""
     return user_id not in favorites_with_artist['userId'].values
-
 
 def get_system_top_artists_genres(favorites_with_artist, top_n=20):
     """Lấy top artists và genres phổ biến nhất toàn hệ thống - GIỐNG GỐC"""
@@ -84,11 +198,13 @@ def calculate_new_user_score(track_row, system_top):
 def recommend_for_new_user(user_id, components, db_connection, top_n=10,
                            diversity_weight=0.15):
     """Recommendations cho user MỚI - LẤY MOOD TỪ MONGODB"""
-    # Lấy data từ components
-    tracks_df = components['tracks']
-    song_mood_df = components['song_mood']
-    ratings_df = components['ratings']
-    favorites_df = components['favorites_with_artist']
+    mongodb_data = load_data_from_mongodb(db_connection)
+
+    # Lấy data từ mongodb_data thay vì components
+    tracks_df = mongodb_data['tracks']
+    song_mood_df = mongodb_data['song_mood']
+    ratings_df = mongodb_data['ratings']
+    favorites_df = mongodb_data['favorites_with_artist']
 
     # 🎯 LẤY MOOD MỚI NHẤT TỪ MONGODB
     try:
@@ -189,12 +305,14 @@ def recommend_for_new_user(user_id, components, db_connection, top_n=10,
 def recommend_for_user(user_id, components, db_connection, top_n=10,
                        diversity_weight=0.1):
     """Recommendations cho user CŨ - LẤY MOOD TỪ MONGODB"""
-    favorites_with_artist = components['favorites_with_artist']
+    mongodb_data = load_data_from_mongodb(db_connection)
+
+    favorites_with_artist = mongodb_data['favorites_with_artist']
+    tracks_df = mongodb_data['tracks']
 
     # Lấy data từ components
     model = components['model']
     feature_cols = components['feature_cols']
-    tracks_df = components['tracks']
 
     # 🎯 LẤY MOOD MỚI NHẤT TỪ MONGODB
     try:
@@ -225,8 +343,6 @@ def recommend_for_user(user_id, components, db_connection, top_n=10,
         )
         user_purchased = set(
             [doc["trackId"] for doc in user_purchased_tracks])  # Giữ nguyên int
-        print(
-            f"📦 Loaded {len(user_purchased)} purchased tracks from MongoDB for user {user_id}")
     except Exception as e:
         print(f"❌ Error getting purchased tracks from MongoDB: {e}")
         user_purchased = set()

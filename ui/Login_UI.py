@@ -11,13 +11,13 @@ import requests
 from PIL import Image, ImageTk, ImageSequence
 from io import BytesIO
 # from CTkMessagebox import CTkMessagebox
-
 import requests
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.mime.image import MIMEImage
 from functions import *
 from tkinter import Tk, Canvas, messagebox, Frame, filedialog, IntVar, StringVar
-
+import os
 from bson import ObjectId
 from customtkinter import CTkEntry, CTkButton, CTkCheckBox, CTkRadioButton
 
@@ -327,31 +327,50 @@ class SignUpFrame(Frame):
             messagebox.showerror("Error", f"Registration failed: {e}")
 
     def send_welcome_email(self, user_email):
-        # Giữ nguyên hàm send_welcome_email
         email_address = "thutna23416@st.uel.edu.vn"
         app_password = "wyas ubap nhqv wwap"
 
-        msg = MIMEMultipart()
+
+        msg = MIMEMultipart('related')
+
         msg["From"] = email_address
         msg["To"] = user_email
         msg["Subject"] = "Welcome to Moo_d!"
 
-        body = """
-        Hi there,
+        # Gán một ID cố định cho ảnh
+        image_cid = 'welcome_image'
 
-        Thank you for signing up for Moo_d Music – your new favorite place to vibe, discover, and enjoy music that matches your mood.
+        body = f"""
+        <html>
+        <head></head>
+        <body>
+            <p>Hi there,</p
+            <p>Thank you for signing up for Moo_d Music – your new favorite place to vibe, discover, and enjoy music that matches your mood.</p>
+            <p>We're thrilled to have you on board!</p>
 
-        We're thrilled to have you on board!
+            <p><img src="cid:{image_cid}" alt="Welcome to Moo_d" style="width:100%; max-width:400px;"></p>
 
-        Stay tuned for curated playlists, personalized mood tracks, and fresh beats tailored just for you.
-
-        Let's set the Moo_d together.
-
-        Cheers,  
-        The Moo_d Team
+            <p>Stay tuned for curated playlists, personalized mood tracks, and fresh beats tailored just for you.</p>
+            <p>Let's set the Moo_d together.</p>
+            <p>
+                Cheers,<br>  
+                The Moo_d Team
+            </p>
+        </body>
+        </html>
         """
-        msg.attach(MIMEText(body, "plain"))
-
+        msg.attach(MIMEText(body, "html"))
+        image_filename = os.path.join('images', 'welcome.png')
+        try:
+            with open(image_filename, 'rb') as fp:
+                img_data = fp.read()
+            img = MIMEImage(img_data, name=os.path.basename(image_filename))
+            img.add_header('Content-ID', f'<{image_cid}>')
+            msg.attach(img)
+        except FileNotFoundError:
+            print(f"Lỗi: Không tìm thấy tệp ảnh tại '{image_filename}'. Email sẽ được gửi không có ảnh.")
+        except Exception as e:
+            print(f"Lỗi khi đính kèm ảnh: {e}")
         try:
             with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
                 server.login(email_address, app_password)
@@ -364,17 +383,6 @@ class SignUpFrame(Frame):
         self.controller.show_frame("LoginFrame")
         self.controller.destroy_frame("SignUpFrame")
 
-    # def on_show(self):
-    #     """Được gọi khi frame được hiển thị"""
-    #     self.name_entry.focus_set()
-    #     self.clear_entries()
-
-    # def clear_entries(self):
-    #     """Xóa nội dung trong các ô nhập liệu"""
-    #     self.name_entry.delete(0, 'end')
-    #     self.email_entry.delete(0, 'end')
-    #     self.username_entry.delete(0, 'end')
-    #     self.password_entry.delete(0, 'end')
 
 class MoodTracker(Frame):
     def __init__(self, parent, controller):

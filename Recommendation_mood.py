@@ -15,7 +15,7 @@ def load_data_from_mongodb(db_connection):
         'song_mood_community': {'trackId': 1, 'mood_community': 1}
     }
 
-    # Load tất cả data trong 1 khối - SIÊU NGẮN
+    # Load tất cả data trong 1 khối
     collections = ['tracks', 'user', 'user_favorite', 'user_rating', 'purchase',
                    'mood_tracking_history', 'song_mood_community']
     tracks, users, favorites, ratings, purchased, mood_hist, song_mood = [
@@ -23,11 +23,11 @@ def load_data_from_mongodb(db_connection):
         for col in collections
     ]
 
-    # Convert userId to string - NGẮN GỌN
+    # Convert userId to string
     for df in [favorites, ratings, purchased, mood_hist, users]:
         df['userId'] = df['userId'].astype(str)
 
-    # Tính toán chính - GIỮ NGUYÊN LOGIC
+    # Tính toán chính
     favorites_with_artist = favorites.merge(tracks[['trackId', 'artistId']],
                                             on='trackId', how='left')
     rating_avg = ratings.groupby("trackId")["rating"].mean().reset_index()
@@ -206,7 +206,7 @@ def recommend_for_new_user(user_id, components, db_connection, top_n=10,
     ratings_df = mongodb_data['ratings']
     favorites_df = mongodb_data['favorites_with_artist']
 
-    # 🎯 LẤY MOOD MỚI NHẤT TỪ MONGODB
+    #LẤY MOOD MỚI NHẤT TỪ MONGODB
     try:
         latest_mood = db_connection.db["mood_tracking_history"].find_one(
             {"userId": user_id}, sort=[("timestamp", -1)]
@@ -220,10 +220,10 @@ def recommend_for_new_user(user_id, components, db_connection, top_n=10,
 
     system_top = get_system_top_artists_genres(favorites_df)
 
-    # 🎯 SỬ DỤNG MOOD TỪ MONGODB ĐỂ SO MOOD
+    #SỬ DỤNG MOOD TỪ MONGODB ĐỂ SO MOOD
     mood_id = current_mood_id
 
-    # 🎯 GIỐNG GỐC: Tạo candidate pool
+    #Tạo candidate pool
     available_columns = ['trackId', 'trackName', 'artistId', 'recency'] + [c for
                                                                            c in
                                                                            [
@@ -241,13 +241,13 @@ def recommend_for_new_user(user_id, components, db_connection, top_n=10,
     candidate_pool = candidate_pool.merge(
         song_mood_df[['trackId', 'mood_community']], on='trackId', how='left')
 
-    # 🎯 GIỐNG GỐC: Lọc theo mood (SO MOOD VỚI MONGODB)
+    #Lọc theo mood (SO MOOD VỚI MONGODB)
     mood_matched_pool = candidate_pool[
         candidate_pool['mood_community'] == mood_id].copy()
     if len(mood_matched_pool) == 0:
         mood_matched_pool = candidate_pool.copy()
 
-    # 🎯 GIỐNG GỐC: Thêm fav_count
+    #Thêm fav_count
     fav_counts = favorites_df.groupby('trackId').size().reset_index(
         name='fav_count')
     mood_matched_pool = mood_matched_pool.merge(
@@ -269,19 +269,19 @@ def recommend_for_new_user(user_id, components, db_connection, top_n=10,
         print(f"❌ Error getting purchased tracks from MongoDB: {e}")
         user_purchased = set()
 
-    # 🎯 GIỐNG GỐC: Loại bỏ bài đã mua
+    #Loại bỏ bài đã mua
     final_candidates = mood_matched_pool[
         ~mood_matched_pool["trackId"].isin(user_purchased)].copy()
 
     if len(final_candidates) == 0:
         return pd.DataFrame()
 
-    # 🎯 GIỐNG GỐC: Tính điểm
+    # Tính điểm
     final_candidates['new_user_score'] = final_candidates.apply(
         lambda row: calculate_new_user_score(row, system_top), axis=1
     )
 
-    # 🎯 GIỐNG GỐC: Đa dạng hóa
+    #Đa dạng hóa
     artist_diversity_penalty = final_candidates.groupby(
         "artistId").cumcount() * diversity_weight
     final_candidates["final_score"] = final_candidates[
@@ -290,7 +290,7 @@ def recommend_for_new_user(user_id, components, db_connection, top_n=10,
     final_recommendations = final_candidates.nlargest(top_n * 2,
                                                       "final_score").head(top_n)
 
-    # 🎯 GIỐNG GỐC: Chọn columns
+    #Chọn columns
     available_columns = ["trackId", "trackName", "artistId", "new_user_score",
                          "final_score", "avg_rating", "recency",
                          "mood_community"]
@@ -314,7 +314,7 @@ def recommend_for_user(user_id, components, db_connection, top_n=10,
     model = components['model']
     feature_cols = components['feature_cols']
 
-    # 🎯 LẤY MOOD MỚI NHẤT TỪ MONGODB
+    #LẤY MOOD MỚI NHẤT TỪ MONGODB
     try:
         latest_mood = db_connection.db["mood_tracking_history"].find_one(
             {"userId": user_id}, sort=[("timestamp", -1)]
@@ -326,12 +326,12 @@ def recommend_for_user(user_id, components, db_connection, top_n=10,
         print(f"❌ Error getting mood from MongoDB: {e}")
         current_mood_id = 1
 
-    # 🎯 GIỐNG GỐC: Kiểm tra user mới
+    #Kiểm tra user mới
     if is_new_user(user_id, favorites_with_artist):
         return recommend_for_new_user(user_id, components, db_connection, top_n,
                                       diversity_weight)
 
-    # 🎯 SỬ DỤNG MOOD TỪ MONGODB ĐỂ SO MOOD
+    #SỬ DỤNG MOOD TỪ MONGODB ĐỂ SO MOOD
     mood_id = current_mood_id
 
     # Lấy purchased từ MongoDB thay vì components
@@ -347,15 +347,15 @@ def recommend_for_user(user_id, components, db_connection, top_n=10,
         print(f"❌ Error getting purchased tracks from MongoDB: {e}")
         user_purchased = set()
 
-    # 🎯 GIỐNG GỐC: Lọc bài chưa mua
+    #Lọc bài chưa mua
     tracks_df["trackId"] = tracks_df["trackId"].astype(int)
     candidate_df = tracks_df[~tracks_df["trackId"].isin(user_purchased)].copy()
     candidate_df["userId"] = user_id
 
-    # 🎯 GIỐNG GỐC: Merge với features từ df gốc
+    #Merge với features từ df gốc
     candidate_df = candidate_df.drop_duplicates(subset="trackId")
 
-    # 🎯 GIỐNG GỐC: Lọc theo mood (SO MOOD VỚI MONGODB)
+    #Lọc theo mood (SO MOOD VỚI MONGODB)
     mood_matched_df = candidate_df[
         candidate_df["mood_community"] == mood_id].copy()
     if len(mood_matched_df) == 0:
@@ -365,16 +365,16 @@ def recommend_for_user(user_id, components, db_connection, top_n=10,
         if len(mood_matched_df) == 0:
             mood_matched_df = candidate_df.copy()
 
-    # 🎯 GIỐNG GỐC: Fill NaN
+    #Fill NaN
     mood_matched_df = mood_matched_df.fillna({
         "rating_score": 0, "recency_score": 0.5, "cf_score": 0,
         "artist_similarity": 0, "genre_similarity": 0
     })
 
-    # 🎯 GIỐNG GỐC: Dự đoán
+    #Dự đoán
     mood_matched_df["pred_score"] = model.predict(mood_matched_df[feature_cols])
 
-    # 🎯 GIỐNG GỐC: Đa dạng hóa
+    #Đa dạng hóa
     artist_diversity_penalty = mood_matched_df.groupby(
         "artistId").cumcount() * diversity_weight
     mood_matched_df["diversity_score"] = mood_matched_df[

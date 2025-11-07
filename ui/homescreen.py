@@ -2213,45 +2213,23 @@ class Song:
 
                     # Lấy DB connection
                     db_connection = self.controller.get_db()
+                    mongodb_data = load_data_from_mongodb(db_connection)
 
                     # Tạo recommendation functions
                     def new_is_new_user(user_id):
                         """KIỂM TRA user có phải là user mới không"""
-                        user_id_str = str(user_id)
-                        favorites_df = components['favorites_with_artist']
-
-                        # Kiểm tra user có trong favorites không
-                        favorites_df['userId'] = favorites_df['userId'].astype(str)
-                        user_exists = user_id_str in favorites_df[
-                            'userId'].astype(str).values
-
-                        return not user_exists
+                        return is_new_user(user_id, mongodb_data[
+                            'favorites_with_artist'])
 
                     def new_recommend_for_user(user_id, top_n=10):
                         """Recommendations cho user CŨ"""
-                        print(
-                            f"🎯 Running recommend_for_user for EXISTING user: {user_id}")
-                        try:
-                            return recommend_for_user(user_id, components,
-                                                      db_connection, top_n)
-                        except Exception as e:
-                            print(f"❌ Error in recommend_for_user: {e}")
-                            import traceback
-                            traceback.print_exc()
-                            return pd.DataFrame()
+                        return recommend_for_user(user_id, components,
+                                                  db_connection, top_n)
 
                     def new_recommend_for_new_user(user_id, top_n=10):
                         """Recommendations cho user MỚI"""
-                        print(
-                            f"🎯 Running recommend_for_new_user for NEW user: {user_id}")
-                        try:
-                            return recommend_for_new_user(user_id, components,
-                                                          db_connection, top_n)
-                        except Exception as e:
-                            print(f"❌ Error in recommend_for_new_user: {e}")
-                            import traceback
-                            traceback.print_exc()
-                            return pd.DataFrame()
+                        return recommend_for_new_user(user_id, components,
+                                                      db_connection, top_n)
 
                     # Tạo recommendation functions mới
                     new_functions = {
@@ -2263,15 +2241,9 @@ class Song:
                     self.ai_components = {
                         'model': components['model'],
                         'feature_cols': components['feature_cols'],
-                        'favorites_with_artist': components[
-                            'favorites_with_artist'],
+                        'mongodb_data': mongodb_data,
                         'current_mood': pd.DataFrame(
                             [{'userId': user_id, 'moodID': current_mood_id}]),
-                        'tracks': components['tracks'],
-                        'ratings': components['ratings'],
-                        'song_mood': components['song_mood'],
-                        'purchased': components['purchased'],
-                        'df': components['df'],
                         'recommendation_functions': new_functions
                     }
 

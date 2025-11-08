@@ -123,20 +123,6 @@ class LoginFrame(Frame):
         username = self.username_entry.get().strip()
         password = self.password_entry.get().strip()
 
-        # try:
-        #     with open("data/user.json", "r", encoding="utf-8") as file:
-        #         users = json.load(file)
-        # except FileNotFoundError:
-        #     messagebox.showerror("Error", "User data not found.")
-        #     return
-        #
-        # for user in users:
-        #     if user["username"] == username and user["password"] == password:
-        #         moo_d.session.current_user = user
-        #         self.controller.show_frame("MoodTracker")
-        #         self.controller.destroy_frame("LoginFrame")
-        #         return
-
         db = self.controller.get_db()
 
         try:
@@ -302,20 +288,29 @@ class SignUpFrame(Frame):
             messagebox.showerror("Error", "Email is already registered!")
             return
 
-        user_object_id = ObjectId()
-
-        # Tạo user mới
-        new_user = {
-            "_id": user_object_id,
-            "userId": str(user_object_id)[-6:],
-            "name": name,
-            "email": email,
-            "username": username,
-            "password": password,
-            "profile_picture": str(relative_to_assets("profile_default.jpg")),
-        }
-
         try:
+            # Lấy tất cả user và tìm userId lớn nhất
+            all_users = db.find_all("user")
+
+            max_id = 0
+            for user in all_users:
+                if "userId" in user and user["userId"].isdigit():
+                    user_id_num = int(user["userId"])
+                    if user_id_num > max_id:
+                        max_id = user_id_num
+
+            next_user_id = str(max_id + 1)
+
+            # Tạo user mới
+            new_user = {
+                "userId": next_user_id,
+                "name": name,
+                "email": email,
+                "username": username,
+                "password": password,
+                "profile_picture": str(relative_to_assets("profile_default.jpg")),
+            }
+
             # Lưu vào MongoDB
             db.insert_one("user", new_user)
 
@@ -486,6 +481,7 @@ class MoodTracker(Frame):
     def on_release(self, mood):
         self.canvas.itemconfig(mood, image=self.image_cache[f"{mood}_hover"])
         print(f"✨ {mood} pressed!")
+        self.controller.show_frame("HomeScreen")
         self.controller.show_frame("LoadingPage")
         self.controller.destroy_frame("MoodTracker")
 
@@ -522,7 +518,7 @@ class LoadingPage(Frame):
         self.animate_text_fade_loop()
 
         # Sau 3 giây -> qua HomeScreen
-        self.after(2000, self.goto_home)
+        self.after(10000, self.goto_home)
 
     def load_background(self):
         """Load nền và overlay pastel."""
@@ -616,7 +612,6 @@ class LoadingPage(Frame):
     def goto_home(self):
         """Chuyển sang HomeScreen"""
         try:
-            self.controller.show_frame("HomeScreen")
             self.controller.destroy_frame("LoadingPage")
         except Exception as e:
             print(f"Lỗi khi chuyển sang HomeScreen: {e}")
@@ -1299,30 +1294,10 @@ class Payment(Frame):
     def close_payment_frame(self):
         """Đóng payment frame và quay về MainScreen"""
         try:
-            if hasattr(self, 'success_canvas'):
-                self.success_canvas.destroy()
-
-            # Quay về MainScreen
-            self.controller.show_frame("HomeScreen")
-
-            # TỰ ĐỘNG PLAY BÀI HÁT VỪA MUA (tuỳ chọn)
-            track_id = str(self.track.get('trackId')) if hasattr(self, 'track') else None
-            if track_id:
-                self.auto_play_purchased_song(track_id)
-
+            self.controller.destroy_frame("Payment")
         except Exception as e:
             print(f"Lỗi khi đóng payment frame: {e}")
 
-    def auto_play_purchased_song(self, track_id):
-        """Tự động phát bài hát vừa mua"""
-        try:
-            if hasattr(self.controller,
-                       'frames') and "HomeScreen" in self.controller.frames:
-                main_screen = self.controller.frames["HomeScreen"]
-                # Delay để đảm bảo MainScreen đã load xong
-                main_screen.after(500, lambda: main_screen.songs.on_song_click(track_id))
-        except Exception as e:
-            print(f" Lỗi auto play: {e}")
 
 
 

@@ -1,6 +1,9 @@
 from ui.homescreen import MainScreen
 from ui.Login_UI import *
 from Connection.connector import db
+import subprocess
+import threading
+
 
 class App(Tk):
     def __init__(self):
@@ -90,9 +93,28 @@ class App(Tk):
             del self.frames[page_name]
             print(f"✅ Destroyed: {page_name}")
 
+    import threading
+    import subprocess
+    import os
+
+    def retrain_background(self):
+        """Chạy retrain nền bằng thread + Popen."""
+
+        def _run():
+            try:
+                script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "retrain_model_artist.py")
+                subprocess.Popen(["python", script_path])
+                print("✅ Retrain đang chạy ngầm…")
+            except Exception as e:
+                print(f"⚠️ Retrain thất bại: {e}")
+
+        threading.Thread(target=_run, daemon=True).start()
+
     def logout(self):
         """Logout - hiển thị LoginFrame và hủy các frame khác"""
         print("🚪 Logging out...")
+
+        threading.Thread(target=self.retrain_background, daemon=True).start()
 
         # Hiển thị LoginFrame trước
         self.show_frame("LoginFrame")
@@ -113,6 +135,8 @@ class App(Tk):
     def on_close(self):
         """Thoát ứng dụng"""
         # ĐÓNG KẾT NỐI DATABASE
+        threading.Thread(target=self.retrain_background, daemon=True).start()
+
         try:
             self.db.close_connection()
         except Exception as e:

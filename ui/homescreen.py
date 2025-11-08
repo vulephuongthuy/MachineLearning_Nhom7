@@ -252,6 +252,15 @@ class MainScreen(Frame):
         """Xử lý logout từ HomeScreen"""
         confirm = messagebox.askyesno("Logout", "Are you sure you want to logout?")
         if confirm:
+            if hasattr(self, "songs") and hasattr(self.songs, "player"):
+                player = self.songs.player
+                if isinstance(player, vlc.MediaPlayer):
+                    if player.is_playing():
+                        player.stop()
+                    player.release()
+                    print("🎵 Music stopped before logout.")
+            else:
+                print("⚠️ Không tìm thấy songs.player để dừng.")
             # Gọi logout của controller
             self.controller.logout()
 

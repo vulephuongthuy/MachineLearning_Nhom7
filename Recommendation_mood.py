@@ -1,7 +1,7 @@
 import pandas as pd
 
 def load_data_from_mongodb(db_connection):
-    """Load và xử lý data - SIÊU NGẮN GỌN & NHANH"""
+    """Load và xử lý data"""
 
     # Định nghĩa projections
     projections = {
@@ -117,11 +117,11 @@ def load_data_from_mongodb(db_connection):
     }
 
 def is_new_user(user_id, favorites_with_artist):
-    """Kiểm tra user có phải là user mới không - GIỐNG GỐC"""
+    """Kiểm tra user có phải là user mới không"""
     return user_id not in favorites_with_artist['userId'].values
 
 def get_system_top_artists_genres(favorites_with_artist, top_n=20):
-    """Lấy top artists và genres phổ biến nhất toàn hệ thống - GIỐNG GỐC"""
+    """Lấy top artists và genres phổ biến nhất toàn hệ thống"""
     top_artists = favorites_with_artist.groupby(
         ['artistId', 'artistName']).size().reset_index(name='total_favs')
     top_artists = top_artists.nlargest(top_n, 'total_favs')
@@ -143,7 +143,7 @@ def get_system_top_artists_genres(favorites_with_artist, top_n=20):
 
 
 def calculate_new_user_score(track_row, system_top):
-    """Tính điểm cho bài hát với user mới - GIỐNG GỐC"""
+    """Tính điểm cho bài hát với user mới"""
     score = 0.0
     weights = {'recency': 0.40, 'rating': 0.30, 'top_artist': 0.15,
                'top_genre': 0.15}

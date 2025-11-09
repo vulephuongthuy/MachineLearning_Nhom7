@@ -241,8 +241,11 @@ class MainScreen(Frame):
                         player.stop()
                     player.release()
                     print("Music stopped before logout.")
-            else:
-                print("Không tìm thấy songs.player để dừng.")
+            if hasattr(self, "songs") and hasattr(self.songs, "after_id"):
+                try:
+                    self.songs.parent.after_cancel(self.songs.after_id)
+                except:
+                    pass
             # Gọi logout của controller
             self.controller.logout()
 
@@ -2329,8 +2332,13 @@ class Song:
 
         def load_recommendations():
             recommendations = self.get_mood_recommendations(user_id)
-            self.parent.after(0, lambda: self.display_mood_recommendations(
-                recommendations))
+            # Nếu frame cha bị destroy thì dừng
+            if not self.parent or not self.parent.winfo_exists():
+                return
+            # Lưu ID của callback để có thể hủy sau này
+            self.after_id = self.parent.after(0,
+                                              lambda: self.display_mood_recommendations(
+                                                  recommendations))
 
         threading.Thread(target=load_recommendations, daemon=True).start()
 

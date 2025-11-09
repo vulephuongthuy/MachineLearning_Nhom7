@@ -247,14 +247,6 @@ def recommend_for_new_user(user_id, components, db_connection, top_n=10,
     if len(mood_matched_pool) == 0:
         mood_matched_pool = candidate_pool.copy()
 
-    #Thêm fav_count
-    fav_counts = favorites_df.groupby('trackId').size().reset_index(
-        name='fav_count')
-    mood_matched_pool = mood_matched_pool.merge(
-        fav_counts[['trackId', 'fav_count']], on='trackId', how='left')
-    mood_matched_pool['fav_count'] = mood_matched_pool['fav_count'].fillna(0)
-
-    # Lấy purchased từ MongoDB thay vì components
     try:
         # Lấy danh sách trackId đã mua từ MongoDB (giữ nguyên int)
         user_purchased_tracks = db_connection.db["purchase"].find(

@@ -480,7 +480,7 @@ class MoodTracker(Frame):
 
     def on_release(self, mood):
         self.canvas.itemconfig(mood, image=self.image_cache[f"{mood}_hover"])
-        print(f"✨ {mood} pressed!")
+        print(f"{mood} pressed!")
         self.controller.show_frame("HomeScreen")
         self.controller.show_frame("LoadingPage")
         self.controller.destroy_frame("MoodTracker")
@@ -503,7 +503,7 @@ class LoadingPage(Frame):
         self.frame_index = 0
         self.animate_gif()
 
-        # Cute loading text ✨
+        # Cute loading text
         self.loading_texts = "Waiting while your mood gets in tune"
         self.text_y = 300
         self.text_label = self.canvas.create_text(
@@ -892,7 +892,7 @@ class Payment(Frame):
         # self.countdown_seconds = 0
         # self.is_countdown_running = False
 
-        # ✅ GIẢ LẬP: Lấy track data đầu tiên từ MongoDB
+        # GIẢ LẬP: Lấy track data đầu tiên từ MongoDB
         self.track_data = {}
 
         # Canvas chính
@@ -943,12 +943,12 @@ class Payment(Frame):
     #
     #         if result:
     #             random_track = result[0]
-    #             print("✅ Đã lấy track ngẫu nhiên từ MongoDB:")
+    #             print("Đã lấy track ngẫu nhiên từ MongoDB:")
     #             print(f"   - Track: {random_track.get('trackName')}")
     #             return random_track
     #
     #     except Exception as e:
-    #         print(f"❌ Lỗi MongoDB: {e}")
+    #         print(f"Lỗi MongoDB: {e}")
     #         return
 
     def load_background(self):
@@ -1216,7 +1216,7 @@ class Payment(Frame):
         """Thêm bài hát vào danh sách purchase (khi thanh toán thành công)"""
         song = self.track_data
         if not song:
-            print("⚠️ Không có bài hát để thêm vào purchase.")
+            print("Không có bài hát để thêm vào purchase.")
             return False
 
         try:
@@ -1226,7 +1226,7 @@ class Payment(Frame):
 
             # Kiểm tra đã mua trước đó chưa
             if db.db["purchase"].find_one({"userId": user_id, "trackId": track_id}):
-                print("ℹ️ Bài hát đã được mua trước đó.")
+                print("Bài hát đã được mua trước đó.")
                 return True
 
             # Tạo ObjectId mới
@@ -1251,7 +1251,7 @@ class Payment(Frame):
             return True
 
         except Exception as e:
-            print(f"❌ Lỗi khi thêm purchase: {e}")
+            print(f"Lỗi khi thêm purchase: {e}")
             return False
 
     # PHIÊN BẢN TỐI ƯU - ĐỌC TRỰC TIẾP TỪ DB
@@ -1276,14 +1276,14 @@ class Payment(Frame):
 
             # Hiển thị success message
             self.success_canvas.create_text(500, 250,
-                                            text="✅ PAYMENT SUCCESSFUL!",
+                                            text="PAYMENT SUCCESSFUL!",
                                             font=("Inter", 24, "bold"),
                                             fill="#89A34E")
             self.success_canvas.create_text(500, 300,
                                             text="Thank you for your purchase!",
                                             font=("Inter", 16), fill="#F2829E")
 
-            print("✅ Payment successful - MainScreen sẽ kiểm tra DB trực tiếp")
+            print("Payment successful - MainScreen sẽ kiểm tra DB trực tiếp")
 
             # Tự động quay về home sau 2 giây
             self.after(2000, self.close_payment_frame)

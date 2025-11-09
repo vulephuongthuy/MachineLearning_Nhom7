@@ -213,9 +213,9 @@ def recommend_for_new_user(user_id, components, db_connection, top_n=10,
         )
         current_mood_id = latest_mood.get("moodID", 1) if latest_mood else 1
         print(
-            f"🎭 Latest moodID from MongoDB for user {user_id}: {current_mood_id}")
+            f"Latest moodID from MongoDB for user {user_id}: {current_mood_id}")
     except Exception as e:
-        print(f"❌ Error getting mood from MongoDB: {e}")
+        print(f"Error getting mood from MongoDB: {e}")
         current_mood_id = 1
 
     system_top = get_system_top_artists_genres(favorites_df)
@@ -264,9 +264,9 @@ def recommend_for_new_user(user_id, components, db_connection, top_n=10,
         user_purchased = set(
             [doc["trackId"] for doc in user_purchased_tracks])  # Giữ nguyên int
         print(
-            f"📦 Loaded {len(user_purchased)} purchased tracks from MongoDB for user {user_id}")
+            f"Loaded {len(user_purchased)} purchased tracks from MongoDB for user {user_id}")
     except Exception as e:
-        print(f"❌ Error getting purchased tracks from MongoDB: {e}")
+        print(f"Error getting purchased tracks from MongoDB: {e}")
         user_purchased = set()
 
     #Loại bỏ bài đã mua
@@ -321,9 +321,9 @@ def recommend_for_user(user_id, components, db_connection, top_n=10,
         )
         current_mood_id = latest_mood.get("moodID", 1) if latest_mood else 1
         print(
-            f"🎭 Latest moodID from MongoDB for user {user_id}: {current_mood_id}")
+            f"Latest moodID from MongoDB for user {user_id}: {current_mood_id}")
     except Exception as e:
-        print(f"❌ Error getting mood from MongoDB: {e}")
+        print(f"Error getting mood from MongoDB: {e}")
         current_mood_id = 1
 
     #Kiểm tra user mới
@@ -344,7 +344,7 @@ def recommend_for_user(user_id, components, db_connection, top_n=10,
         user_purchased = set(
             [doc["trackId"] for doc in user_purchased_tracks])  # Giữ nguyên int
     except Exception as e:
-        print(f"❌ Error getting purchased tracks from MongoDB: {e}")
+        print(f"Error getting purchased tracks from MongoDB: {e}")
         user_purchased = set()
 
     #Lọc bài chưa mua

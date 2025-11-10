@@ -2205,8 +2205,9 @@ class Song:
 
         def load_recommendations():
             try:
+                db = self.controller.get_db()
                 from genre_recommendation import get_genre_recommendations
-                result = get_genre_recommendations(user_id)
+                result = get_genre_recommendations(db, user_id)
                 result['user_id'] = user_id
                 self.genre_recommendations_cache = result
                 self.parent.after(0, lambda: self.display_genre_recommendations(result))
@@ -2269,33 +2270,65 @@ class Song:
         })
 
         for widget in [frame, canvas]:
-            widget.bind("<Button-1>", lambda e, genre=genre_name, res=result: self.on_genre_click(genre, res))
+            # widget.bind("<Button-1>", lambda e, genre=genre_name, res=result: self.on_genre_click(genre, res))
+            widget.bind("<Button-1>", lambda e, genre=genre_name: self.on_genre_click(genre))
             widget.bind("<Enter>", lambda e, w=widget: self.on_item_hover(w, True))
             widget.bind("<Leave>", lambda e, w=widget: self.on_item_hover(w, False))
 
-    def on_genre_click(self, genre_name, result=None):
-        """Xử lý khi click vào genre"""
+    def on_genre_click(self, genre_name):
+        """Xử lý khi click vào genre - chỉ dùng cache"""
         print(f"🎵 Genre clicked: {genre_name}")
 
-        if result:
-            print(f"🔍 Result type: {type(result)}")
-            if 'recommendations' in result:
-                for rec in result['recommendations']:
+        # Luôn dùng cache
+        cached_result = self.genre_recommendations_cache
+
+        if cached_result and cached_result.get('user_id') == session.current_user.get("userId"):
+            print("🔍 Using cached result for genre click")
+            if 'recommendations' in cached_result:
+                for rec in cached_result['recommendations']:
                     if rec['genre'] == genre_name:
                         tracks = rec['tracks']
-                        print(f"✅ Found tracks for {genre_name}: {len(tracks)} tracks")
-                        self.parent.after(0, lambda: self.show_genre_tracks(genre_name))
+                        print(f"✅ Found {len(tracks)} tracks for {genre_name} from cache - displaying immediately")
+                        self.parent.after(0, lambda: self.display_genre_tracks_modal(genre_name, tracks))
                         return
+
+        # Fallback: nếu cache không có, vẫn load từ database
+        print(f"🔄 No cache found for {genre_name}, loading from database")
+        self.parent.after(0, lambda: self.show_genre_tracks(genre_name))
 
     def show_genre_tracks(self, genre_name):
         """Hiển thị genre tracks"""
 
         def load_tracks():
             try:
-                from genre_recommendation import recommend_tracks_for_genre
+                # Ưu tiên dùng cache trước
+                if (self.genre_recommendations_cache and
+                        self.genre_recommendations_cache.get('user_id') == session.current_user.get("userId")):
+
+                    print("🎵 Using cached genre data for tracks")
+                    cached_result = self.genre_recommendations_cache
+
+                    # Tìm tracks từ cache
+                    if 'recommendations' in cached_result:
+                        for rec in cached_result['recommendations']:
+                            if rec['genre'] == genre_name:
+                                tracks = rec['tracks']
+                                print(f"✅ Found {len(tracks)} tracks for {genre_name} from cache")
+                                self.parent.after(0, lambda: self.display_genre_tracks_modal(genre_name, tracks))
+                                return
+
+                # Nếu không có cache, mới gọi database
+                print(f"🔄 Loading tracks for {genre_name} from database")
+                db = self.controller.get_db()
+                from genre_recommendation import recommend_tracks_for_genre, get_user_purchased_tracks, get_purchased_artists
+
                 user_id = session.current_user.get("userId")
-                tracks = recommend_tracks_for_genre(user_id, genre_name, limit=10)
+                purchased_tracks = get_user_purchased_tracks(db, user_id)
+                purchased_artists = get_purchased_artists(db, user_id)
+                tracks = recommend_tracks_for_genre(user_id, genre_name, purchased_tracks, purchased_artists, limit=10)
+
                 self.parent.after(0, lambda: self.display_genre_tracks_modal(genre_name, tracks))
+
             except Exception as e:
                 print(f"❌ Lỗi khi tải tracks cho genre {genre_name}: {e}")
 

@@ -10,8 +10,8 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 # --- TẢI MÔ HÌNH ---
 base_dir = os.path.dirname(os.path.abspath(__file__))
-master_feature_path = os.path.join(base_dir, "models/master_features2.pkl")
-mf_model_path = os.path.join(base_dir, "models/mf_model .pkl")
+master_feature_path = os.path.join(base_dir, "models/master_features.pkl")
+mf_model_path = os.path.join(base_dir, "models/mf_model.pkl")
 
 try:
     with open(master_feature_path, 'rb') as f:

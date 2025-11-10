@@ -2205,8 +2205,9 @@ class Song:
 
         def load_recommendations():
             try:
+                db = self.controller.get_db()
                 from genre_recommendation import get_genre_recommendations
-                result = get_genre_recommendations(user_id)
+                result = get_genre_recommendations(db, user_id)
                 result['user_id'] = user_id
                 self.genre_recommendations_cache = result
                 self.parent.after(0, lambda: self.display_genre_recommendations(result))

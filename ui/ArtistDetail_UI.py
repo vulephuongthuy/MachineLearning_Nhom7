@@ -1,6 +1,10 @@
 import tkinter as tk
 from tkinter import Frame, Canvas, Label
+from urllib.request import urlopen
+
 from customtkinter import CTkButton
+
+import session
 from functions import load_image, relative_to_assets
 from Connection.connector import db
 from PIL import Image, ImageTk
@@ -22,7 +26,7 @@ class ArtistDetailFrame(Frame):
 
         # CHỈ chiếm phần content area, không đè lên toolbar và search
         self.configure(bg="#F7F7DC", width=900, height=410)
-        self.place(x=100, y=90)
+        self.place(x=80, y=90)
 
         self.setup_scrollable_frame()
 
@@ -193,7 +197,7 @@ class ArtistDetailFrame(Frame):
             fg="#F586A3",
             font=("Inter", 16, "bold")
         )
-        self.albums_count_label.grid(row=2, column=0, sticky="w", padx=5, pady=(0, 25))
+        self.albums_count_label.grid(row=2, column=0, sticky="w", padx=(18, 5), pady=(0, 25))
 
         self.clear_album_widgets()
 
@@ -488,3 +492,240 @@ class ArtistDetailFrame(Frame):
             pass
         self._unregister_from_parent()
         super().destroy()
+
+    def on_album_click(self, album_name):
+        """Khi click album -> hiển thị danh sách bài hát"""
+        if not self._is_destroyed:
+            print(f"🎵 Clicked album: {album_name}")
+            self.show_album_tracks(album_name)
+
+    def show_album_tracks(self, album_name):
+        """Hiển thị danh sách bài hát trong album"""
+        if self._is_destroyed:
+            return
+
+        # Ẩn albums container
+        self.albums_container.grid_forget()
+
+        # Load và hiển thị tracks TRỰC TIẾP trong content_frame
+        self.load_album_tracks(album_name)
+
+    def load_album_tracks(self, album_name):
+        """Load danh sách bài hát từ album"""
+        try:
+            tracks = list(db.db["tracks"].find(
+                {"collectionName": album_name}
+            ).sort("trackNumber", 1))
+
+            print(f"🎵 Found {len(tracks)} tracks in album: {album_name}")
+            self.display_album_tracks(tracks)
+
+        except Exception as e:
+            print(f"❌ Error loading album tracks: {e}")
+            self.show_tracks_error_message()
+
+    def display_album_tracks(self, tracks):
+        """Hiển thị danh sách bài hát TRỰC TIẾP trong content_frame"""
+        if self._is_destroyed:
+            return
+
+        # Tạo container cho tracks NGAY trong content_frame
+        self.tracks_container = Frame(self.content_frame, bg="#F7F7DC")
+        self.tracks_container.grid(row=2, column=0, sticky="nsew", padx=20, pady=10)
+
+        # Với mỗi track, tạo track item
+        for track in tracks:
+            self.create_album_track_item(track)
+
+    def create_album_track_item(self, track):
+        """Tạo track item cho album - giống y hệt genre tracks"""
+        # Lấy full song data
+        song_data = self.get_full_track_data(track)
+
+        # Tạo UI frame
+        frame = Frame(self.tracks_container, bg="#F7F7DC", padx=10, pady=5)
+        frame.pack(fill="x", expand=True)
+
+        # Tạo image label và load ảnh
+        img_label = Label(frame, bg="#F7F7DC", width=100, height=100)
+        img_label.pack(side="left", padx=10)
+        self.load_track_image_async(track, song_data, img_label)
+
+        # Tạo text info
+        text_frame = Frame(frame, bg="#F7F7DC")
+        text_frame.pack(side="left", fill="x", expand=True)
+
+        track_name = self.truncate_text(track.get("trackName", "Unknown"), 40)
+        artist_name = self.truncate_text(track.get("artistName", "Unknown Artist"), 30)
+
+        text_color = "#89A34E"
+        title_label = Label(text_frame, text=track_name,
+                            font=("Coiny Regular", 18), fg=text_color, bg="#F7F7DC")
+        title_label.pack(anchor="w")
+
+        artist_label = Label(text_frame, text=artist_name,
+                             font=("Newsreader Regular", 14), fg=text_color, bg="#F7F7DC")
+        artist_label.pack(anchor="w")
+
+        # Widgets list để bind events
+        widgets = [frame, img_label, title_label, artist_label]
+
+        # Kiểm tra purchase status và bind events
+        self.check_and_bind_purchase_events(widgets, track, song_data)
+
+    def truncate_text(self, text, max_length):
+        """Cắt ngắn text nếu quá dài"""
+        if len(text) > max_length:
+            return text[:max_length - 3] + "..."
+        return text
+
+    def show_tracks_error_message(self):
+        """Hiển thị thông báo lỗi khi load tracks"""
+        if self._is_destroyed:
+            return
+
+        error_label = Label(
+            self.content_frame,
+            text="❌ Error loading tracks",
+            bg="#F7F7DC",
+            fg="#FF6B6B",
+            font=("Inter", 16)
+        )
+        error_label.grid(row=2, column=0, padx=20, pady=50)
+
+    def get_full_track_data(self, track):
+        """Lấy full track data từ MongoDB"""
+        try:
+            db = self.controller.get_db()
+            track_id = track.get('trackId')
+            return db.db["tracks"].find_one({"trackId": int(track_id)}) or track
+        except Exception as e:
+            print(f"❌ Error loading song data: {e}")
+            return track
+
+    def load_track_image_async(self, track, song_data, img_label):
+        """Tải ảnh bất đồng bộ"""
+
+        def load_image():
+            try:
+                img = None
+                if song_data and song_data.get("artworkUrl100"):
+                    url = song_data.get("artworkUrl100")
+
+                    if url in self.image_cache:
+                        img = self.image_cache[url]
+                    else:
+                        image_bytes = urlopen(url).read()
+                        pil_image = Image.open(BytesIO(image_bytes))
+                        pil_image = pil_image.resize((100, 100), Image.Resampling.LANCZOS)
+                        img = ImageTk.PhotoImage(pil_image)
+                        self.image_cache[url] = img
+
+                self.parent.after(0, lambda: self.update_image_label(img_label, img, track))
+
+            except Exception as e:
+                print(f"❌ Error loading image: {e}")
+                self.parent.after(0, lambda: self.update_image_label(img_label, None, track))
+
+        threading.Thread(target=load_image, daemon=True).start()
+
+    def update_image_label(self, img_label, img, track):
+        """Cập nhật image label"""
+        if img_label.winfo_exists():
+            if img:
+                img_label.config(image=img)
+                img_label.image = img
+            else:
+                img_label.config(text="🎵", font=("Arial", 24), fg="#89A34E")
+
+    def check_and_bind_purchase_events(self, widgets, track, song_data):
+        """Kiểm tra purchase status và bind events"""
+
+        def check_purchase():
+            try:
+                db = self.controller.get_db()
+                user_id = session.current_user.get("userId")
+
+                if not user_id:
+                    return
+
+                purchased = db.db["purchase"].find_one({
+                    "userId": user_id,
+                    "trackId": track.get('trackId')
+                })
+
+                self.parent.after(0, lambda: self.bind_events_based_on_purchase(
+                    widgets, purchased, track, song_data
+                ))
+
+            except Exception as e:
+                print(f"❌ Error checking purchase: {e}")
+                self.parent.after(0, lambda: self.bind_payment_events(widgets, song_data))
+
+        threading.Thread(target=check_purchase, daemon=True).start()
+
+    def bind_events_based_on_purchase(self, widgets, purchased, track, song_data):
+        """Bind events dựa trên trạng thái purchase"""
+        frame, img_label, title_label, artist_label = widgets
+        if purchased:
+            self.bind_play_events(widgets, track.get('trackId'))
+        else:
+            self.bind_payment_events(widgets, song_data)
+            # Thêm nút mua hàng
+            self.add_buy_button(frame, song_data)
+
+    def add_buy_button(self, parent_frame, song_data):
+        """Thêm nút mua hàng vào frame"""
+        try:
+            # Tạo ảnh cho nút giá
+            self.image_cache["buy_btn"] = load_image("Buy_button.png")
+
+            buy_btn = CTkButton(
+                parent_frame,
+                image=self.image_cache["buy_btn"],
+                text="",
+                hover_color="#F7F7DC",
+                fg_color="#F7F7DC",
+                bg_color="#F7F7DC",
+                border_width=0,
+                corner_radius=0,
+                cursor="hand2",
+                command=lambda s=song_data: self.controller.process_payment(s)
+            )
+            buy_btn.pack(side="right", padx=(0, 10))
+
+        except Exception as e:
+            print(f"❌ Lỗi khi tạo nút mua hàng: {e}")
+
+    def bind_play_events(self, widgets, track_id):
+        """Bind sự kiện phát nhạc - sử dụng songs từ parent"""
+
+        def play_handler(event, t_id=track_id):
+            print(f"🎵 Playing track {t_id}")
+
+            # 🔥 DEBUG: KIỂM TRA CẤU TRÚC
+            print(f"   - Có parent: {hasattr(self, 'parent')}")
+            if hasattr(self, 'parent'):
+                print(f"   - Có songs: {hasattr(self.parent, 'songs')}")
+                print(f"   - Type của songs: {type(self.parent.songs)}")
+                print(f"   - Có on_song_click: {hasattr(self.parent.songs, 'on_song_click')}")
+
+            # 🔥 SỬ DỤNG SONGS TỪ PARENT
+            if hasattr(self, 'parent') and hasattr(self.parent, 'songs'):
+                if hasattr(self.parent.songs, 'on_song_click'):
+                    self.parent.songs.on_song_click(t_id)
+                    print("✅ Đã gọi on_song_click thành công")
+                else:
+                    print("❌ songs không có hàm on_song_click")
+            else:
+                print("❌ Không tìm thấy songs từ parent")
+
+        for widget in widgets:
+            widget.bind("<Button-1>", play_handler)
+            widget.config(cursor="hand2")
+
+    def bind_payment_events(self, widgets, song_data):
+        """Bind sự kiện mua hàng"""
+        for widget in widgets:
+            widget.bind("<Button-1>", lambda e, data=song_data: self.controller.process_payment(data))
+            widget.config(cursor="hand2")

@@ -1,315 +1,306 @@
 # ===============================================
-# recommendation_genre.py
+# recommendation_genre.py - ĐÃ TỐI GIẢN
 # ===============================================
 import pickle
 import random
+import numpy as np
 import pandas as pd
-from pymongo import MongoClient
 import os
+from sklearn.metrics.pairwise import cosine_similarity
 
-# --- KẾT NỐI DATABASE ---
-client = MongoClient("mongodb://localhost:27017/")
-db = client["moo_d"]
-
-# --- TẢI MÔ HÌNH ĐÃ TRAIN ---
+# --- TẢI MÔ HÌNH ---
 base_dir = os.path.dirname(os.path.abspath(__file__))
-master_feature_path = os.path.join(base_dir, "models/master_features.pkl")
-mf_model_path = os.path.join(base_dir, "models/mf_model.pkl")
+master_feature_path = os.path.join(base_dir, "models/master_features2.pkl")
+mf_model_path = os.path.join(base_dir, "models/mf_model .pkl")
 
 try:
     with open(master_feature_path, 'rb') as f:
         master_features = pickle.load(f)
     with open(mf_model_path, 'rb') as f:
         mf_model = pickle.load(f)
-    print("✅ Mô hình genre recommendation đã sẵn sàng.")
+    print("Mô hình genre recommendation đã sẵn sàng.")
 except Exception as e:
-    print("⚠️ Lỗi khi tải model:", e)
+    print("Lỗi khi tải model:", e)
     master_features = mf_model = None
 
+# ===============================================
+# CACHE SYSTEM
+# ===============================================
+_user_data_cache = {}
+
+def get_cached_user_data(db, user_id):
+    """Lấy và cache dữ liệu user"""
+    if user_id in _user_data_cache:
+        return _user_data_cache[user_id]
+
+    purchased_tracks = get_user_purchased_tracks(db, user_id)
+    purchased_artists = get_purchased_artists(db, user_id)
+
+    user_data = {
+        'purchased_tracks': purchased_tracks,
+        'purchased_artists': purchased_artists,
+        'is_cold_start': len(purchased_tracks) < 5
+    }
+
+    _user_data_cache[user_id] = user_data
+    print(f"Cached: {len(purchased_tracks)} tracks, {len(purchased_artists)} artists")
+    return user_data
+
+
+def clear_user_cache(user_id=None):
+    """Xóa cache"""
+    global _user_data_cache
+    if user_id:
+        if user_id in _user_data_cache:
+            del _user_data_cache[user_id]
+    else:
+        _user_data_cache.clear()
+
 
 # ===============================================
-# HÀM TIỆN ÍCH - DATA ACCESS
+# DATA ACCESS
 # ===============================================
-
-def is_cold_start_user(user_id):
-    """Kiểm tra user có phải cold start không (ít lịch sử nghe)"""
-    try:
-        played_count = db.user_history.count_documents({'userId': str(user_id)})
-        is_cold = played_count < 5
-        print(f"🔍 User {user_id}: {played_count} bài đã nghe -> Cold: {is_cold}")
-        return is_cold
-    except Exception as e:
-        print(f"⚠️ Lỗi khi kiểm tra cold start user {user_id}: {e}")
-        return True
-
-
-def get_popular_genres(limit=4):
-    """Lấy top genres phổ biến nhất toàn hệ thống"""
-    try:
-        if master_features is not None and not master_features.empty:
-            genre_counts = master_features['primaryGenreName'].value_counts()
-            popular_genres = genre_counts.head(limit).index.tolist()
-            print(f"🏆 Top {limit} genres từ hệ thống: {popular_genres}")
-            return popular_genres
-        else:
-            fallback_genres = ['Pop', 'Rock', 'Hip-Hop/Rap', 'Electronic']
-            print(f"🏆 Sử dụng fallback genres: {fallback_genres}")
-            return fallback_genres
-    except Exception as e:
-        print(f"⚠️ Lỗi khi lấy popular genres: {e}")
-        return ['Pop', 'Rock', 'Hip-Hop/Rap', 'Electronic']
-
-
-def get_user_purchased_tracks(user_id):
+def get_user_purchased_tracks(db, user_id):
     """Lấy danh sách tracks user đã mua"""
     try:
-        purchased_tracks = list(db.db["purchase"].find(  # ✅ SỬA: db["purchase"]
-            {'userId': str(user_id)},
-            {'trackId': 1}
+        purchased_tracks = list(db.db["purchase"].find(
+            {'userId': str(user_id)}, {'trackId': 1}
         ))
-        purchased_ids = [str(track['trackId']) for track in purchased_tracks]
-        return purchased_ids
+        return [str(track['trackId']) for track in purchased_tracks]
     except Exception as e:
-        print(f"❌ Lỗi khi lấy purchased tracks: {e}")
+        print(f"Lỗi khi lấy purchased tracks: {e}")
         return []
 
 
-def get_purchased_artists(user_id):
-    """Trả về danh sách artistId mà user đã mua bài"""
+def get_purchased_artists(db, user_id):
+    """Lấy danh sách artist user đã mua"""
     try:
-        purchased_ids = get_user_purchased_tracks(user_id)
-        if not purchased_ids:
-            return []
-
-        tracks_info = list(db.db["tracks"].find(
-            {'trackId': {'$in': purchased_ids}},
-            {'artistId': 1, '_id': 0}
-        ))
-
-        artist_ids = [t['artistId'] for t in tracks_info if 'artistId' in t]
-        return list(set(artist_ids))
+        pipeline = [
+            {'$match': {'userId': str(user_id)}},
+            {'$lookup': {
+                'from': 'tracks',
+                'localField': 'trackId',
+                'foreignField': 'trackId',
+                'as': 'track_info'
+            }},
+            {'$unwind': '$track_info'},
+            {'$group': {'_id': '$track_info.artistId'}}
+        ]
+        artist_cursor = db.db["purchase"].aggregate(pipeline)
+        return [doc['_id'] for doc in artist_cursor if doc.get('_id')]
     except Exception as e:
-        print(f"❌ Lỗi khi lấy danh sách artistId đã mua: {e}")
-        return []
-
-def get_user_played_tracks(user_id):
-    """Lấy danh sách tracks user đã nghe"""
-    try:
-        played_tracks = list(db.db["user_history"].find(
-            {'userId': str(user_id)},
-            {'trackId': 1}
-        ))
-        played_ids = [str(track['trackId']) for track in played_tracks]
-        return played_ids
-    except Exception as e:
-        print(f"❌ Lỗi khi lấy played tracks: {e}")
+        print(f"Lỗi khi lấy artists: {e}")
         return []
 
 
 # ===============================================
-# HÀM COLD START - ĐƠN GIẢN & HIỆU QUẢ
+# COLD START
 # ===============================================
-
-def get_cold_start_recommendations(user_id, limit_per_genre=10):
-    """Cold start đơn giản: lấy top tracks của mỗi genre (loại trừ đã mua)"""
+def get_cold_start_recommendations(db, user_id, purchased_tracks, limit_per_genre=10):
+    """Cold start recommendations"""
     try:
-        print(f"🎯 Cold start đơn giản cho user {user_id}")
-
-        # Lấy danh sách tracks đã mua
-        purchased_tracks = get_user_purchased_tracks(user_id)
-
-        popular_genres = get_popular_genres(4)
+        popular_genres = get_popular_genres()
         all_recommendations = []
-        total_tracks = 0
 
         for genre in popular_genres:
-            genre_tracks = get_top_tracks_for_genre(genre, limit_per_genre, purchased_tracks)
-
+            genre_tracks = get_top_tracks_for_genre(db, genre, limit_per_genre, purchased_tracks)
             all_recommendations.append({
                 'genre': genre,
                 'tracks': genre_tracks,
                 'track_count': len(genre_tracks)
             })
-            total_tracks += len(genre_tracks)
-            print(f"✅ {genre}: {len(genre_tracks)} tracks (đã loại trừ {len(purchased_tracks)} tracks đã mua)")
 
         return {
             'user_id': user_id,
             'user_type': 'cold_start',
             'top_genres': popular_genres,
             'recommendations': all_recommendations,
-            'total_recommended_tracks': total_tracks,
-            'message': f'Cold start - {total_tracks} tracks phổ biến nhất (đã loại trừ tracks đã mua)'
+            'total_recommended_tracks': sum(len(rec['tracks']) for rec in all_recommendations)
         }
-
     except Exception as e:
-        print(f"❌ Lỗi cold start: {e}")
-        return {
-            'user_id': user_id,
-            'user_type': 'cold_start',
-            'error': str(e),
-            'recommendations': [],
-            'total_recommended_tracks': 0
-        }
+        print(f"Lỗi cold start: {e}")
+        return {'user_id': user_id, 'user_type': 'cold_start', 'recommendations': []}
 
 
-def get_top_tracks_for_genre(genre, limit=10, exclude_tracks=None):
-    """Lấy top tracks của genre - loại trừ tracks đã mua"""
+def get_popular_genres(limit=4):
+    """Lấy top genres phổ biến"""
+    if master_features is not None and not master_features.empty:
+        return master_features['primaryGenreName'].value_counts().head(limit).index.tolist()
+
+def get_top_tracks_for_genre(db, genre, limit=10, exclude_tracks=None):
+    """Lấy top tracks của genre"""
     try:
         if exclude_tracks is None:
             exclude_tracks = []
 
         if master_features is not None:
-            # Lọc ra tracks thuộc genre và không nằm trong danh sách loại trừ
             genre_tracks = master_features[
                 (master_features['primaryGenreName'] == genre) &
                 (~master_features['trackId'].isin(exclude_tracks))
-            ].copy()
+                ].copy()
         else:
-            # Fallback: query từ database với điều kiện loại trừ
-            genre_tracks = pd.DataFrame(list(db.tracks.find({
+            genre_tracks = pd.DataFrame(list(db.db["tracks"].find({
                 'primaryGenreName': genre,
                 'trackId': {'$nin': exclude_tracks}
-            }, limit=limit * 3)))  # Lấy nhiều hơn để đề phòng bị loại trừ nhiều
+            }, limit=limit * 3)))
 
         if genre_tracks.empty:
-            print(f"📭 Không có tracks nào cho genre {genre} sau khi loại trừ")
             return []
 
-        # Sắp xếp theo popularity_score và lấy top
-        genre_tracks = genre_tracks.sort_values('popularity_score', ascending=False)
-        top_tracks = genre_tracks.head(limit)
+        top_tracks = genre_tracks.nlargest(limit, 'popularity_score')
 
-        results = []
-        for _, track in top_tracks.iterrows():
-            results.append({
-                'trackId': track['trackId'],
-                'trackName': track['trackName'],
-                'artistName': track['artistName'],
-                'primaryGenreName': track['primaryGenreName'],
-                'popularity_score': track['popularity_score'],
-                'avg_rating': track.get('avg_rating', 3.0),
-                'score': track['popularity_score'],
-                'recommendation_type': 'cold_start_top_popular'
-            })
-        print(f"🎵 Genre {genre}: tìm thấy {len(results)}/{limit} tracks sau khi loại trừ")
-        return results
+        return [{
+            'trackId': track['trackId'],
+            'trackName': track['trackName'],
+            'artistName': track['artistName'],
+            'primaryGenreName': track['primaryGenreName'],
+            'popularity_score': track['popularity_score'],
+            'avg_rating': track.get('avg_rating', 3.0),
+            'score': track['popularity_score'],
+            'recommendation_type': 'cold_start_top_popular'
+        } for _, track in top_tracks.iterrows()]
 
     except Exception as e:
-        print(f"❌ Lỗi lấy top tracks cho {genre}: {e}")
+        print(f"Lỗi lấy top tracks cho {genre}: {e}")
         return []
 
 
 # ===============================================
-# HÀM CHO REGULAR USER - CÓ LỊCH SỬ
+# REGULAR USER
 # ===============================================
-
-def get_user_top_genres(user_id, limit=50):
-    """Lấy top genres của user từ lịch sử nghe gần nhất"""
+def get_user_top_genres(db, user_id, limit=50):
+    """Lấy top genres của user từ lịch sử gần nhất"""
     try:
-        if is_cold_start_user(user_id):
-            print(f"🎯 User {user_id} là cold start, sử dụng top genres hệ thống")
-            return get_popular_genres(4)
+        played_tracks = list(db.db["user_history"].find(
+            {'userId': str(user_id)}, {'trackId': 1}
+        ).sort('LastPlayedAt', -1).limit(limit))
 
-        user_history = list(db.user_history.find(
-            {'userId': str(user_id)},
-            sort=[('LastPlayedAt', -1)],
-            limit=limit
-        ))
+        played_ids = [str(track['trackId']) for track in played_tracks]
 
-        if not user_history:
-            return []
+        if not played_ids or master_features is None:
+            return get_popular_genres()
 
-        user_df = pd.DataFrame(user_history)
-        user_df['trackId'] = user_df['trackId'].astype(str)
+        user_tracks_df = pd.DataFrame(played_ids, columns=['trackId'])
         master_features['trackId'] = master_features['trackId'].astype(str)
 
-        user_tracks = user_df.merge(
+        user_tracks = user_tracks_df.merge(
             master_features[['trackId', 'primaryGenreName']],
             on='trackId',
             how='left'
         )
 
-        genre_counts = user_tracks.groupby('primaryGenreName').agg({
-            'PlayCount': 'sum',
-            'trackId': 'count'
-        }).reset_index()
+        if user_tracks.empty:
+            return get_popular_genres()
 
-        genre_counts['weighted_score'] = (
-                0.7 * genre_counts['PlayCount'] +
-                0.3 * genre_counts['trackId']
-        )
-
-        top_genres = genre_counts.nlargest(4, 'weighted_score')['primaryGenreName'].tolist()
-        return top_genres
+        return user_tracks['primaryGenreName'].value_counts().head(4).index.tolist()
 
     except Exception as e:
-        print(f"❌ Lỗi khi lấy top genres cho user {user_id}: {e}")
-        return []
+        print(f"Lỗi khi lấy top genres: {e}")
+        return get_popular_genres()
+
+def simple_similarity_filtering(purchased_track_ids, candidate_tracks, top_k=50):
+    """Lọc tracks bằng similarity"""
+    try:
+        purchased_tracks_features = master_features[
+            master_features['trackId'].isin(purchased_track_ids)
+        ]
+
+        if purchased_tracks_features.empty:
+            return candidate_tracks.nlargest(top_k, 'popularity_score')
+
+        feature_columns = ['recency_score', 'unique_listeners', 'favorite_count']
+        purchased_features = purchased_tracks_features[feature_columns].fillna(0)
+        candidate_features = candidate_tracks[feature_columns].fillna(0)
+
+        # CHUẨN HÓA
+        from sklearn.preprocessing import StandardScaler
+        scaler = StandardScaler()
+
+        all_features = pd.concat([purchased_features, candidate_features])
+        scaler.fit(all_features)
+
+        purchased_scaled = scaler.transform(purchased_features)
+        candidate_scaled = scaler.transform(candidate_features)
+
+        similarities = cosine_similarity(purchased_scaled, candidate_scaled)
+        # similarities = cosine_similarity(purchased_features, candidate_features)
+        avg_similarities = similarities.mean(axis=0)
+
+        candidate_tracks = candidate_tracks.copy()
+        candidate_tracks['similarity'] = avg_similarities
+        return candidate_tracks.nlargest(top_k, 'similarity')
+
+    except Exception as e:
+        print(f"Lỗi similarity filtering: {e}")
+        return candidate_tracks.nlargest(top_k, 'popularity_score')
 
 
-def calculate_track_score(user_id, track):
-    """Tính điểm cho track - kết hợp MF, popularity, rating"""
+def calculate_track_score(user_id, track, purchased_artists=None):
+    """Tính điểm gợi ý cho bài hát - OPTIMIZED"""
     score = 0.0
     track_id_str = str(track['trackId'])
 
     # 1. Matrix Factorization Score
     mf_score = 0
-    if (mf_model and str(user_id) in mf_model['user_idx_map']
-            and track_id_str in mf_model['track_idx_map']):
-        user_idx = mf_model['user_idx_map'][str(user_id)]
-        track_idx = mf_model['track_idx_map'][track_id_str]
-        mf_score = max(0, mf_model['R_pred'][user_idx, track_idx])
+    if mf_model and str(user_id) in mf_model['user_idx_map'] and track_id_str in mf_model['track_idx_map']:
+        u_idx = mf_model['user_idx_map'][str(user_id)]
+        i_idx = mf_model['track_idx_map'][track_id_str]
+        mf_score = float(mf_model['R_pred'][u_idx, i_idx])
 
-    mf_contribution = 0.45 * (mf_score * 1.4 if mf_score > 0 else 0.5)
-    score += mf_contribution
+    # Adaptive MF contribution based on score confidence
+    if mf_score > 0.25:
+        score += 0.40 * mf_score
+    elif mf_score > 0.20:
+        score += 0.25 * mf_score
+    else:
+        score += 0.10 * mf_score
 
-    # 2. Popularity Score
-    pop_score = track['popularity_score']
-    score += 0.25 * (pop_score * 1.2 if pop_score < 0.6 else pop_score)
+    # 2. Content Quality Score
+    # Engagement metrics
+    listeners = track.get('unique_listeners', 0)
+    favorites = track.get('favorite_count', 0)
+    plays = track.get('total_plays', 0)
 
-    # 3. Rating Score
-    rating_score = track['avg_rating'] / 5.0
-    score += 0.15 * (rating_score * 1.3 if rating_score < 0.7 else rating_score)
+    engagement = min(1.0, (np.log1p(listeners) * 0.4
+                           + np.log1p(favorites) * 0.4
+                           + np.log1p(plays) * 0.2) / 6.0)
+    score += 0.30 * engagement
 
-    # 4. Recency Score
-    score += 0.15 * track['recency_score']
+    if track.get('rating_count', 0) >= 3:
+        score += 0.05 * (track.get('avg_rating', 0) / 5.0)
 
-    # 5. Randomness for diversity
-    score += 0.05 * random.uniform(0.3, 1.0)
+    score += 0.15 * track.get('recency_score', 0)
 
-    # 6. Ưu tiên nghệ sĩ đã mua
+    if purchased_artists and str(track.get('artistId', '')) in purchased_artists:
+        score += 0.05
+
+    score += 0.05 * random.uniform(0.0, 1.0)  # Reduced randomness
+
+    return float(np.clip(score, 0.1, 1.0))
+
+def recommend_tracks_for_genre(user_id, genre, purchased_tracks, purchased_artists, limit=10):
+    """Gợi ý tracks cho genre - OPTIMIZED VERSION"""
     try:
-        purchased_artists = get_purchased_artists(user_id)
-        track_artist_id = str(track.get('artistId', ''))
-        if track_artist_id in purchased_artists:
-            score += 0.2
-    except Exception as e:
-        print(f"⚠️ Lỗi khi tính ưu tiên nghệ sĩ đã mua: {e}")
-
-    return min(1.0, max(0.4, score))
-
-
-def recommend_tracks_for_genre(user_id, genre, limit=10):
-    """Gợi ý tracks cho genre cụ thể với diversity cân bằng"""
-    try:
-        purchased_tracks = get_user_purchased_tracks(user_id)
-        played_tracks = get_user_played_tracks(user_id)
         master_features['trackId'] = master_features['trackId'].astype(str)
 
         available_tracks = master_features[
             (master_features['primaryGenreName'] == genre) &
-            (~master_features['trackId'].isin(purchased_tracks)) &
-            (~master_features['trackId'].isin(played_tracks))
+            (~master_features['trackId'].isin(purchased_tracks))
             ]
 
         if available_tracks.empty:
             return []
 
-        # Tính điểm và sắp xếp
+        prefiltered_tracks = simple_similarity_filtering(
+            purchased_tracks, available_tracks, top_k=limit * 5
+        )
+
+        if prefiltered_tracks.empty:
+            return []
+
         scored_tracks = []
-        for _, track in available_tracks.iterrows():
-            score = calculate_track_score(user_id, track)
+        for _, track in prefiltered_tracks.iterrows():
+            score = calculate_track_score(user_id, track, purchased_artists)
             scored_tracks.append({
                 'track': track,
                 'score': score,
@@ -317,142 +308,78 @@ def recommend_tracks_for_genre(user_id, genre, limit=10):
             })
 
         scored_tracks.sort(key=lambda x: x['score'], reverse=True)
-        return select_tracks_with_diversity(scored_tracks, limit)
+
+        # LỰA CHỌN VỚI DIVERSITY LINH HOẠT
+        final_tracks = []
+        artist_count = {}
+
+        for track_data in scored_tracks:
+            if len(final_tracks) >= limit:
+                break
+
+            artist = track_data['artist']
+            current_score = track_data['score']
+
+            max_per_artist = 3 if current_score > 0.7 else 2 if current_score > 0.5 else 1
+
+            if artist_count.get(artist, 0) < max_per_artist:
+                track = track_data['track']
+                final_tracks.append({
+                    'trackId': track['trackId'],
+                    'trackName': track['trackName'],
+                    'artistName': track['artistName'],
+                    'primaryGenreName': track['primaryGenreName'],
+                    'score': current_score,
+                    'popularity_score': track['popularity_score'],
+                    'recency_score': track['recency_score'],
+                    'avg_rating': track['avg_rating']
+                })
+                artist_count[artist] = artist_count.get(artist, 0) + 1
+        return final_tracks
 
     except Exception as e:
-        print(f"❌ Lỗi khi gợi ý tracks cho genre {genre}: {e}")
+        print(f"Lỗi khi gợi ý tracks: {e}")
         return []
 
-
-def select_tracks_with_diversity(scored_tracks, limit):
-    """Lựa chọn tracks với cân bằng chất lượng và diversity"""
-    if not scored_tracks:
-        return []
-
-    final_tracks = []
-    artist_count = {}
-    top_tracks = scored_tracks[:limit * 3]
-
-    # Ưu tiên chất lượng cao + đa dạng nghệ sĩ
-    for track_data in top_tracks:
-        if len(final_tracks) >= limit:
-            break
-
-        artist = track_data['artist']
-        current_count = artist_count.get(artist, 0)
-
-        if current_count < 2:
-            final_tracks.append(create_track_result(track_data))
-            artist_count[artist] = current_count + 1
-
-    # Nếu chưa đủ, lấy thêm không quan tâm diversity
-    if len(final_tracks) < limit:
-        remaining = [t for t in scored_tracks if create_track_result(t) not in final_tracks]
-        for track_data in remaining[:limit - len(final_tracks)]:
-            final_tracks.append(create_track_result(track_data))
-
-    return final_tracks
-
-
-def create_track_result(track_data):
-    """Tạo kết quả track chuẩn hóa"""
-    track = track_data['track']
-    return {
-        'trackId': track['trackId'],
-        'trackName': track['trackName'],
-        'artistName': track['artistName'],
-        'primaryGenreName': track['primaryGenreName'],
-        'score': track_data['score'],
-        'popularity_score': track['popularity_score'],
-        'recency_score': track['recency_score'],
-        'avg_rating': track['avg_rating']
-    }
-
-
 # ===============================================
-# HÀM CHÍNH - ĐIỂM VÀO CỦA HỆ THỐNG
+# HÀM CHÍNH
 # ===============================================
-
-def get_genre_recommendations(user_id, limit_per_genre=10):
-    """Hàm chính lấy recommendations - tự động xử lý cold start"""
+def get_genre_recommendations(db, user_id, limit_per_genre=10):
+    """Hàm chính lấy recommendations"""
     try:
-        # Kiểm tra cold start
-        if is_cold_start_user(user_id):
-            print(f"🎯 User {user_id} là cold start")
-            return get_cold_start_recommendations(user_id, limit_per_genre)
+        user_data = get_cached_user_data(db, user_id)
+        purchased_tracks = user_data['purchased_tracks']
+        purchased_artists = user_data['purchased_artists']
+        is_cold_start = user_data['is_cold_start']
 
-        # Xử lý regular user
-        top_genres = get_user_top_genres(user_id)
+        if is_cold_start:
+            result = get_cold_start_recommendations(db, user_id, purchased_tracks, limit_per_genre)
+        else:
+            top_genres = get_user_top_genres(db, user_id)
+            all_recommendations = []
 
-        if not top_genres:
-            return get_cold_start_recommendations(user_id, limit_per_genre)
+            for genre in top_genres:
+                genre_tracks = recommend_tracks_for_genre(
+                    user_id, genre, purchased_tracks, purchased_artists, limit_per_genre
+                )
+                all_recommendations.append({
+                    'genre': genre,
+                    'tracks': genre_tracks,
+                    'track_count': len(genre_tracks)
+                })
 
-        all_recommendations = []
-        total_tracks = 0
+            result = {
+                'user_id': user_id,
+                'user_type': 'regular_user',
+                'top_genres': top_genres,
+                'recommendations': all_recommendations,
+                'total_recommended_tracks': sum(len(rec['tracks']) for rec in all_recommendations)
+            }
 
-        for genre in top_genres:
-            genre_tracks = recommend_tracks_for_genre(user_id, genre, limit_per_genre)
-
-            all_recommendations.append({
-                'genre': genre,
-                'tracks': genre_tracks,
-                'track_count': len(genre_tracks)
-            })
-            total_tracks += len(genre_tracks)
-
-        return {
-            'user_id': user_id,
-            'user_type': 'regular_user',
-            'top_genres': top_genres,
-            'recommendations': all_recommendations,
-            'total_recommended_tracks': total_tracks
-        }
+        clear_user_cache(user_id)
+        return result
 
     except Exception as e:
-        print(f"❌ Lỗi trong get_genre_recommendations: {e}")
-        # Fallback: dùng cold start
-        return get_cold_start_recommendations(user_id, limit_per_genre)
-
-
-# ===============================================
-# HÀM HIỂN THỊ & TEST
-# ===============================================
-
-def display_recommendations(result):
-    """Hiển thị kết quả recommendations"""
-    if 'error' in result:
-        print(f"❌ Lỗi: {result['error']}")
-        return
-
-    if not result['recommendations']:
-        print("ℹ️ Không có recommendations nào.")
-        return
-
-    print(f"\n🎵 RECOMMENDATIONS CHO USER: {result['user_id']}")
-    print("=" * 60)
-    print(f"📊 User type: {result['user_type']}")
-    print(f"🎯 Top genres: {', '.join(result['top_genres'])}")
-    print(f"🎵 Tổng số bài hát: {result['total_recommended_tracks']}")
-    if 'message' in result:
-        print(f"💡 {result['message']}")
-    print("=" * 60)
-
-    for i, genre_rec in enumerate(result['recommendations'], 1):
-        print(f"\n{i}. 🎼 GENRE: {genre_rec['genre']}")
-        print(f"   📊 Số bài hát: {genre_rec['track_count']}")
-        print("   " + "-" * 50)
-
-        for j, track in enumerate(genre_rec['tracks'], 1):
-            print(f"   {j:2d}. {track['trackName'][:40]:40} - {track['artistName'][:25]:25}")
-            print(f"        ⭐ Score: {track['score']:.3f}")
-
-
-if __name__ == "__main__":
-    print("🎵 TESTING GENRE RECOMMENDATION SYSTEM")
-    print("=" * 50)
-
-    # Test với user cụ thể
-    user_id = "113345"
-    result = get_genre_recommendations(user_id)
-    display_recommendations(result)
-
+        print(f"Lỗi trong get_genre_recommendations: {e}")
+        clear_user_cache(user_id)
+        return {'user_id': user_id, 'user_type': 'error', 'recommendations': []}

@@ -2152,7 +2152,7 @@ class Song:
                 self.parent.after(0, lambda: self.show_mood_songs_modal(mood_name, top_songs))
 
             except Exception as e:
-                print(f"❌ Error: {e}")
+                print(f" Error: {e}")
 
         threading.Thread(target=load_songs_data, daemon=True).start()
 

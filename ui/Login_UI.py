@@ -22,7 +22,7 @@ from bson import ObjectId
 from customtkinter import CTkEntry, CTkButton, CTkCheckBox, CTkRadioButton
 
 import session
-# from Connection.connector import db
+from Connection.connector import db
 
 
 class LoginFrame(Frame):
@@ -380,6 +380,12 @@ class SignUpFrame(Frame):
 
 
 class MoodTracker(Frame):
+    MOOD_MAP = {
+        "Happy": 1,
+        "Sad": 2,
+        "Neutral": 3,
+        "Intense": 4
+    }
     def __init__(self, parent, controller):
         super().__init__(parent)
         self.controller = controller
@@ -389,6 +395,7 @@ class MoodTracker(Frame):
 
         self.load_background()
         self.create_widgets()
+
 
     def load_background(self):
         """Load nền và overlay pastel."""
@@ -479,8 +486,59 @@ class MoodTracker(Frame):
         self.canvas.itemconfig(mood, image=self.image_cache[f"{mood}_click"])
 
     def on_release(self, mood):
+        from datetime import datetime
+
         self.canvas.itemconfig(mood, image=self.image_cache[f"{mood}_hover"])
         print(f"{mood} pressed!")
+
+        user_id = session.current_user.get("userId")
+        now = datetime.now()
+        month_key = now.strftime("%Y-%m")
+        mood_id = self.MOOD_MAP[mood]
+
+        # ===== 1) Tạo historyID tự tăng =====
+        counter = db.db.counters.find_one_and_update(
+            {"_id": "mood_history"},
+            {"$inc": {"seq": 1}},
+            upsert=True,
+            return_document=True
+        )
+        history_id = counter["seq"]
+
+        # ===== 2) Lưu vào mood_tracking_history =====
+        db.db.mood_tracking_history.insert_one({
+            "historyID": history_id,
+            "userId": user_id,
+            "moodID": mood_id,
+            "moodName": mood,
+            "timestamp": now.isoformat() + "Z"
+        })
+
+        # ===== 3) Cập nhật summary =====
+        summary = db.db.mood_monthly_summary.find_one_and_update(
+            {"userId": user_id, "month": month_key},
+            {
+                "$inc": {
+                    "total_entries": 1,
+                    f"mood_count.{mood}": 1
+                }
+            },
+            upsert=True,
+            return_document=True
+        )
+
+        # ===== 4) Tính lại breakdown và dominant_mood =====
+        counts = summary.get("mood_count", {})
+        total = summary.get("total_entries", 1)
+
+        breakdown = {m: round(counts.get(m, 0) / total, 2) for m in self.MOOD_MAP.keys()}
+        dominant = max(breakdown, key=breakdown.get)
+
+        db.db.mood_monthly_summary.update_one(
+            {"userId": user_id, "month": month_key},
+            {"$set": {"mood_breakdown": breakdown, "dominant_mood": dominant}}
+        )
+
         self.controller.show_frame("HomeScreen")
         self.controller.show_frame("LoadingPage")
         self.controller.destroy_frame("MoodTracker")

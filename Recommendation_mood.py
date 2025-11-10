@@ -24,9 +24,14 @@ def load_data_from_mongodb(db_connection):
         for col in collections
     ]
 
-    # Convert userId to string
-    for df in [favorites, ratings, purchased, mood_hist, users]:
-        df['userId'] = df['userId'].astype(str)
+    # Convert userId to string - CHỈ THỰC HIỆN VỚI DF CÓ COLUMN 'userId'
+    dataframes_to_convert = [favorites, ratings, purchased, mood_hist, users]
+
+    for df in dataframes_to_convert:
+        if 'userId' in df.columns:  # Kiểm tra xem cột có tồn tại không
+            df['userId'] = df['userId'].astype(str)
+        else:
+            print(f"Cảnh báo: DataFrame thiếu cột 'userId'. Các cột có sẵn: {list(df.columns)}")
 
     # Tính toán chính
     favorites_with_artist = favorites.merge(tracks[['trackId', 'artistId']],

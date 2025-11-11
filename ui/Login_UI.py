@@ -509,12 +509,11 @@ class MoodTracker(Frame):
             "timestamp": now.isoformat() + "Z"
         })
 
-        # ===== Lấy summary tháng hiện tại =====
+        #  Lấy summary tháng hiện tại
         summary = db.db.mood_monthly_summary.find_one(
             {"userId": user_id, "month": month_key}
         )
-
-        # ===== Nếu chưa có → tạo mới đầy đủ cấu trúc =====
+        #  Nếu chưa có → tạo mới đầy đủ cấu trúc
         if not summary:
             summary = {
                 "userId": user_id,
@@ -525,12 +524,12 @@ class MoodTracker(Frame):
                 "dominant_mood": None
             }
 
-        # ===== ĐẢM BẢO mood_count luôn có đủ keys (fix cho data cũ) =====
+        #ĐẢM BẢO mood_count luôn có đủ keys (fix cho data cũ)
         for m in self.MOOD_MAP.keys():
             if m not in summary["mood_count"]:
                 summary["mood_count"][m] = 0
 
-        # ===== Cập nhật dữ liệu tháng =====
+        # Cập nhật dữ liệu tháng
         summary["total_entries"] += 1
         summary["mood_count"][mood] += 1
 

@@ -91,7 +91,7 @@ class App(Tk):
 
             self.frames[page_name].destroy()
             del self.frames[page_name]
-            print(f"✅ Destroyed: {page_name}")
+            print(f" Destroyed: {page_name}")
 
     import threading
     import subprocess
@@ -104,9 +104,9 @@ class App(Tk):
             try:
                 script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "retrain_model_artist.py")
                 subprocess.Popen(["python", script_path])
-                print("✅ Retrain đang chạy ngầm…")
+                print(" Retrain đang chạy ngầm…")
             except Exception as e:
-                print(f"⚠️ Retrain thất bại: {e}")
+                print(f" Retrain thất bại: {e}")
 
         threading.Thread(target=_run, daemon=True).start()
 
@@ -130,7 +130,7 @@ class App(Tk):
             print(f"🗑️ Destroying: {frame_name}")
             self.destroy_frame(frame_name)
 
-        print("✅ Logout successful")
+        print(" Logout successful")
 
     def on_close(self):
         """Thoát ứng dụng"""

@@ -496,16 +496,11 @@ class MoodTracker(Frame):
         month_key = now.strftime("%Y-%m")
         mood_id = self.MOOD_MAP[mood]
 
-        # ===== 1) Tạo historyID tự tăng =====
-        counter = db.db.counters.find_one_and_update(
-            {"_id": "mood_history"},
-            {"$inc": {"seq": 1}},
-            upsert=True,
-            return_document=True
-        )
-        history_id = counter["seq"]
+        # ===== Auto historyID không cần counter =====
+        last = db.db.mood_tracking_history.find_one(sort=[("historyID", -1)])
+        history_id = last["historyID"] + 1 if last else 1
 
-        # ===== 2) Lưu vào mood_tracking_history =====
+        # ===== Lưu lịch sử =====
         db.db.mood_tracking_history.insert_one({
             "historyID": history_id,
             "userId": user_id,
@@ -514,34 +509,59 @@ class MoodTracker(Frame):
             "timestamp": now.isoformat() + "Z"
         })
 
-        # ===== 3) Cập nhật summary =====
-        summary = db.db.mood_monthly_summary.find_one_and_update(
-            {"userId": user_id, "month": month_key},
-            {
-                "$inc": {
-                    "total_entries": 1,
-                    f"mood_count.{mood}": 1
-                }
-            },
-            upsert=True,
-            return_document=True
+        # ===== Lấy summary tháng hiện tại =====
+        summary = db.db.mood_monthly_summary.find_one(
+            {"userId": user_id, "month": month_key}
         )
 
-        # ===== 4) Tính lại breakdown và dominant_mood =====
-        counts = summary.get("mood_count", {})
-        total = summary.get("total_entries", 1)
+        # ===== Nếu chưa có → tạo mới đầy đủ cấu trúc =====
+        if not summary:
+            summary = {
+                "userId": user_id,
+                "month": month_key,
+                "total_entries": 0,
+                "mood_count": {m: 0 for m in self.MOOD_MAP.keys()},
+                "mood_breakdown": {},
+                "dominant_mood": None
+            }
 
-        breakdown = {m: round(counts.get(m, 0) / total, 2) for m in self.MOOD_MAP.keys()}
-        dominant = max(breakdown, key=breakdown.get)
+        # ===== ĐẢM BẢO mood_count luôn có đủ keys (fix cho data cũ) =====
+        for m in self.MOOD_MAP.keys():
+            if m not in summary["mood_count"]:
+                summary["mood_count"][m] = 0
 
+        # ===== Cập nhật dữ liệu tháng =====
+        summary["total_entries"] += 1
+        summary["mood_count"][mood] += 1
+
+        total = summary["total_entries"]
+        summary["mood_breakdown"] = {
+            m: round(summary["mood_count"][m] / total, 2)
+            for m in self.MOOD_MAP.keys()
+        }
+
+        summary["dominant_mood"] = max(
+            summary["mood_breakdown"], key=summary["mood_breakdown"].get
+        )
+
+        # ===== Lưu lại vào DB =====
         db.db.mood_monthly_summary.update_one(
             {"userId": user_id, "month": month_key},
-            {"$set": {"mood_breakdown": breakdown, "dominant_mood": dominant}}
+            {"$set": summary},
+            upsert=True
         )
+
+        # ===== Lưu vào session (để HomeScreen lấy mood hiện tại) =====
+        session.current_user["current_mood"] = {
+            "moodID": mood_id,
+            "moodName": mood,
+            "timestamp": now
+        }
 
         self.controller.show_frame("HomeScreen")
         self.controller.show_frame("LoadingPage")
         self.controller.destroy_frame("MoodTracker")
+
 
 class LoadingPage(Frame):
     def __init__(self, parent, controller):

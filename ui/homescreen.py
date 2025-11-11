@@ -1,11 +1,9 @@
 import datetime as dt
-import shutil
 from datetime import datetime
 import threading
-import time
 import tkinter
 from tkinter import Menu, PhotoImage, Entry, Scale, Canvas, Frame, \
-    messagebox, Label, filedialog
+    messagebox, Label
 from tkinter.constants import HORIZONTAL
 from urllib.request import urlopen
 import pymongo
@@ -16,7 +14,6 @@ import vlc
 from PIL.Image import Resampling
 from customtkinter import CTkButton
 
-import session
 from Recommendation_mood import *
 from functions import *
 from ui.Login_UI import ProfileFrame
@@ -25,9 +22,8 @@ import tempfile
 import os
 import pandas as pd
 import tkinter as tk
-from ui.musicplayer import MoodPlayerFrame,RatingFrame,SongMoodsFrame
+from ui.musicplayer import MoodPlayerFrame,RatingFrame
 from Song_mood_manager import MoodManager
-from Rating_manager import RatingManager
 
 from ui.WrapUp_UI import WrapUpFrame
 
@@ -166,7 +162,7 @@ class MainScreen(Frame):
         from ui.ArtistDetail_UI import ArtistDetailFrame
         self.artist_frame = ArtistDetailFrame(self, self.controller, artist_name)
         self.current_content_frame = self.artist_frame
-        print(f"✅ Đã mở ArtistDetail cho: {artist_name}")
+        print(f"Đã mở ArtistDetail cho: {artist_name}")
 
     def hide_current_content(self):
         """Ẩn frame content hiện tại - CHỈ ẨN, KHÔNG DESTROY SONG FRAME"""
@@ -259,15 +255,15 @@ class MainScreen(Frame):
             else:
                 if self.sleeptimer_frame.winfo_ismapped():
                     self.sleeptimer_frame.place_forget()
-                    print("🩶 SleepTimerFrame hidden.")
+                    print("SleepTimerFrame hidden.")
                 else:
                     self.sleeptimer_frame.place(x=650, y=290, width=300,
                                                 height=200)
                     self.sleeptimer_frame.lift()
-                    print("🩵 SleepTimerFrame shown again.")
+                    print("SleepTimerFrame shown again.")
         except Exception as e:
             import traceback
-            print("❌ Lỗi khi mở SleepTimer:", e)
+            print("Lỗi khi mở SleepTimer:", e)
             traceback.print_exc()
 
     def open_player(self):
@@ -277,7 +273,7 @@ class MainScreen(Frame):
         self.player_area.place(x=50, y=0, width=950, height=600)
 
         # 🔥 BỎ FAKE DATA - DÙNG STATE THẬT
-        print("🎵 DEBUG: Current REAL state từ MainScreen:")
+        print("DEBUG: Current REAL state từ MainScreen:")
         print(f"  - Current song: {self.songs.current_song}")
         print(f"  - Is playing: {self.songs.is_playing}")
         print(f"  - Is paused: {self.songs.is_paused}")
@@ -299,14 +295,14 @@ class MainScreen(Frame):
 
         if hasattr(self.player_frame, 'register_main_callback'):
             self.player_frame.register_main_callback(self.on_song_changed_from_player)
-            print("✅ Đã đăng ký callback từ player")
+            print("Đã đăng ký callback từ player")
 
         self.player_frame.place(x=0, y=0, width=950, height=600)
         print("🎵 DEBUG: MoodPlayerFrame created and placed")
 
     def on_song_changed_from_player(self, song):
         """Được gọi khi Player thay đổi bài hát"""
-        print(f"🔄 HomeScreen nhận bài hát mới từ Player: {song.get('trackName', 'Unknown')}")
+        print(f"HomeScreen nhận bài hát mới từ Player: {song.get('trackName', 'Unknown')}")
         # Cập nhật MainScreen
         if hasattr(self, 'songs'):
             self.songs.current_song = song
@@ -315,11 +311,11 @@ class MainScreen(Frame):
     def register_song_change_callback(self, callback):
         """Đăng ký callback khi bài hát thay đổi"""
         self.song_change_callbacks.append(callback)
-        print(f"✅ Đã đăng ký song change callback: {len(self.song_change_callbacks)}")
+        print(f"Đã đăng ký song change callback: {len(self.song_change_callbacks)}")
 
     def notify_song_changed(self, song, source="main"):
         """Thông báo bài hát thay đổi đến tất cả listeners"""
-        print(f"🔔 Notify song changed from {source}: {song.get('trackName', 'Unknown')}")
+        print(f"Notify song changed from {source}: {song.get('trackName', 'Unknown')}")
         self.parent.current_song = song  # 🔥 LUÔN CẬP NHẬT CURRENT_SONG
 
         for callback in self.song_change_callbacks:
@@ -332,15 +328,15 @@ class MainScreen(Frame):
         """Thiết lập callback cho repeat mode trong MainScreen"""
         if hasattr(self, 'songs') and hasattr(self.songs, 'register_repeat_callback'):
             self.songs.register_repeat_callback(self.update_main_repeat_ui)
-            print("✅ MainScreen: Đã đăng ký repeat callback")
+            print("MainScreen: Đã đăng ký repeat callback")
             # 🔥 DEBUG: KIỂM TRA SỐ LƯỢNG CALLBACK
             print(f"   - Số lượng repeat_callbacks: {len(self.songs.repeat_callbacks)}")
         else:
-            print("❌ MainScreen: Không thể đăng ký callback")
+            print("MainScreen: Không thể đăng ký callback")
 
     def update_main_repeat_ui(self, mode):
         """Cập nhật giao diện nút repeat trong MainScreen - GỌI HÀM CÓ SẴN"""
-        print(f"🔄 MainScreen nhận repeat mode: {mode}")
+        print(f"MainScreen nhận repeat mode: {mode}")
         print(f"   - Có buttons: {hasattr(self, 'buttons')}")
         print(f"   - Có toggle_repeat: {hasattr(self.buttons, 'toggle_repeat')}")
 
@@ -350,19 +346,19 @@ class MainScreen(Frame):
             self.songs.repeat_mode = mode
             # Gọi hàm toggle_repeat với mode cụ thể
             self.buttons.toggle_repeat(mode)
-            print(f"✅ MainScreen: Đã gọi toggle_repeat với mode {mode}")
+            print(f"MainScreen: Đã gọi toggle_repeat với mode {mode}")
         else:
-            print("❌ MainScreen: Không thể gọi toggle_repeat")
+            print("MainScreen: Không thể gọi toggle_repeat")
 
     def setup_love_callbacks(self):
         """Thiết lập callback cho love song trong MainScreen"""
         if hasattr(self, 'songs') and hasattr(self.songs, 'register_love_callback'):
             self.songs.register_love_callback(self.update_main_love_ui)
-            print("✅ MainScreen: Đã đăng ký love callback")
+            print("MainScreen: Đã đăng ký love callback")
 
     def update_main_love_ui(self, song, is_favorite):
         """Cập nhật giao diện nút love trong MainScreen"""
-        print(f"❤️ MainScreen nhận love state: {song.get('trackName')} -> {is_favorite}")
+        print(f"MainScreen nhận love state: {song.get('trackName')} -> {is_favorite}")
 
         # 🔥 CẬP NHẬT UI NẾU LÀ BÀI HÁT HIỆN TẠI
         if hasattr(self, 'songs') and self.songs.current_song and \
@@ -430,7 +426,7 @@ class MainScreen(Frame):
 
         # Kiểm tra xem all_tracks đã được load chưa
         if not hasattr(self, 'all_tracks') or not self.all_tracks:
-            print("⚠️ Chưa có dữ liệu bài hát để tìm kiếm")
+            print("Chưa có dữ liệu bài hát để tìm kiếm")
             return
 
         query_words = query.split()
@@ -511,7 +507,7 @@ class MainScreen(Frame):
     def create_suggestion_item(self, song):
         """Tạo 1 hàng gợi ý - Click anywhere works"""
         pink_bg = self.suggestion_color  # Màu nền ban đầu: #FDEFF2 (hồng nhạt)
-        pink_hover = "#F8C8D8"  # 🎯 Màu hồng đậm hơn khi hover
+        pink_hover = "#F8C8D8"  # Màu hồng đậm hơn khi hover
 
         # Frame chính
         item_frame = tk.Frame(self.suggestion_frame, bg=pink_bg)
@@ -648,7 +644,7 @@ class MainScreen(Frame):
         # 🎯 KIỂM TRA TRỰC TIẾP TỪ DB - LUÔN CÓ DATA MỚI NHẤT
         if self.is_track_purchased(track_id):
             # ĐÃ MUA - PLAY NGAY
-            print(f"✅ Đã mua, đang phát: {track_name}")
+            print(f"Đã mua, đang phát: {track_name}")
             self.songs.on_song_click(track_id)
             self.suggestion_container.place_forget()
             self.buttons.search_entry.delete(0, 'end')
@@ -706,7 +702,7 @@ class MainScreen(Frame):
             return False
 
         except Exception as e:
-            print(f"❌ Lỗi kiểm tra purchase: {e}")
+            print(f"Lỗi kiểm tra purchase: {e}")
             import traceback
             traceback.print_exc()
             return False
@@ -788,7 +784,7 @@ class MainScreen(Frame):
             self.after(0, update_ui)
 
         except Exception as e:
-            print(f"❌ Lỗi tải ảnh {url}: {e}")
+            print(f"Lỗi tải ảnh {url}: {e}")
 
             def set_default():
                 try:
@@ -974,8 +970,8 @@ class Button:
         if view_type == "profile":
             self.parent.open_profile()
         elif view_type == "home":
-            self.parent.songs.load_ai_recommendations() if hasattr(
-                self.parent.songs, 'load_ai_recommendations') else None
+            self.parent.songs.load_mood_recommendations() if hasattr(
+                self.parent.songs, 'load_mood_recommendations') else None
             self.show_songs_list()
             self.current_title = "Home"
         elif view_type == "history":
@@ -1299,7 +1295,7 @@ class Song:
         self.start_time = 0
 
         # === PHẦN RECOMMENDATION FOR TODAY===
-        self.ai_components = None
+        self.mood_components = None
         self.recommendation_items = []
 
         self.owned_songs_manager = SongListManager(self.parent, controller, "owned_songs")
@@ -1362,13 +1358,13 @@ class Song:
 
         self.parent.bind("<Configure>", self.check_song_end)
 
-        self.init_ai_recommender()
-        # === END AI RECOMMENDATION ===
+        self.init_mood_recommender()
+        # === END MOOD RECOMMENDATION ===
         self.artist_recommendations_cache = None
         self.artist_items = []
         self.artist_images_cache = {}
-        # Tạo AI recommendations sau khi khởi tạo xong
-        self.parent.after(2000, self.load_ai_recommendations)
+        # Tạo Mood recommendations sau khi khởi tạo xong
+        self.parent.after(2000, self.load_mood_recommendations)
         self.parent.after(500, self.create_artist_recommendations)
 
         # Canvas cho genre tracks
@@ -1426,7 +1422,7 @@ class Song:
             if hasattr(self, 'artist_container') and self.artist_container and self.artist_container.winfo_exists():
                 return
 
-            print("🔄 Đang tạo artist recommendations...")
+            print("Đang tạo artist recommendations...")
 
             # Tạo container chính
             self.artist_container = Frame(self.canvas, bg="#F7F7DC")
@@ -1589,7 +1585,7 @@ class Song:
         self.clear_artist_recommendations()
 
         if not recommendations:
-            print("⚠️ Không có recommendations")
+            print("Không có recommendations")
             no_data_label = Label(
                 self.artist_frame,
                 text="No artist recommendations available",
@@ -1728,7 +1724,7 @@ class Song:
 
             self.controller.after(0, update_ui)
         except Exception as e:
-            print(f"⚠️ Lỗi tải ảnh mặc định: {e}")
+            print(f"Lỗi tải ảnh mặc định: {e}")
 
     def on_artist_click(self, artist_name):
         """Xử lý khi click vào nghệ sĩ - CẬP NHẬT TITLE"""
@@ -2221,7 +2217,7 @@ class Song:
         self.clear_genre_recommendations()
 
         if not result or 'error' in result:
-            print("⚠️ No genre recommendations available")
+            print("No genre recommendations available")
             return
 
         top_genres = result.get('top_genres', [])
@@ -2372,27 +2368,24 @@ class Song:
         self.liked_songs_manager.hide()
         self.playlist_manager.hide()
 
-    def init_ai_recommender(self):
-        """Khởi tạo AI Recommender"""
+    def init_mood_recommender(self):
+        """Khởi tạo Mood Recommender"""
         try:
             if not session.current_user:
                 print(" No user session")
-                self.ai_components = None
+                self.mood_components = None
                 return
 
             user_id = session.current_user.get("userId")
 
-            # 1. Lấy moodID mới nhất từ MongoDB
+            # LẤY MOOD MỚI NHẤT TỪ SESSION
             try:
-                db = self.controller.get_db()
-                latest_mood = db.db["mood_tracking_history"].find_one(
-                    {"userId": user_id}, sort=[("timestamp", -1)]
-                )
-                current_mood_id = latest_mood.get("moodID",
-                                                  1) if latest_mood else 1
-                print(f" Latest moodID for user {user_id}: {current_mood_id}")
+                current_mood_data = session.current_user.get("current_mood", {})
+                current_mood_id = current_mood_data.get("moodID", 1)
+                print(
+                    f"Current moodID from session for user {user_id}: {current_mood_id}")
             except Exception as e:
-                print(f"Error getting mood from MongoDB: {e}")
+                print(f"Error getting mood from session: {e}")
                 current_mood_id = 1
 
             # 2. Load model từ zip file
@@ -2400,7 +2393,7 @@ class Song:
 
             if not os.path.exists(zip_path):
                 print(f" Model zip file not found: {zip_path}")
-                self.ai_components = None
+                self.mood_components = None
                 return
 
             with zipfile.ZipFile(zip_path, 'r') as zip_ref:
@@ -2420,7 +2413,7 @@ class Song:
                         components = joblib.load(model_path)
                     except Exception as e:
                         print(f" Joblib load failed: {e}")
-                        self.ai_components = None
+                        self.mood_components = None
                         return
 
                     # Lấy DB connection
@@ -2450,7 +2443,7 @@ class Song:
                         'recommend_for_new_user': new_recommend_for_new_user
                     }
 
-                    self.ai_components = {
+                    self.mood_components = {
                         'model': components['model'],
                         'feature_cols': components['feature_cols'],
                         'mongodb_data': mongodb_data,
@@ -2460,25 +2453,25 @@ class Song:
                     }
 
                 else:
-                    print("❌ No .joblib file found in zip")
-                    self.ai_components = None
+                    print("No .joblib file found in zip")
+                    self.mood_components = None
                     return
 
         except Exception as e:
-            print(f"❌ Failed to init AI: {e}")
+            print(f"Failed to init Mood: {e}")
             import traceback
             traceback.print_exc()
-            self.ai_components = None
+            self.mood_components = None
 
-    def get_ai_recommendations(self, user_id, num_recommendations=10):
+    def get_mood_recommendations(self, user_id, num_recommendations=10):
         """Lấy recommendations - Phân biệt rõ user mới/cũ"""
-        if not self.ai_components:
+        if not self.mood_components:
             return self.get_fallback_recommendations(num_recommendations)
 
         try:
             user_id_str = str(user_id)
-            functions = self.ai_components['recommendation_functions']
-            current_mood_id = self.ai_components['current_mood'].iloc[0][
+            functions = self.mood_components['recommendation_functions']
+            current_mood_id = self.mood_components['current_mood'].iloc[0][
                 'moodID']
 
             # Kiểm tra user type
@@ -2525,7 +2518,7 @@ class Song:
 
     def get_fallback_recommendations(self, num_recommendations):
         """Fallback khi model không hoạt động"""
-        tracks = self.ai_components.get('tracks', pd.DataFrame())
+        tracks = self.mood_components.get('tracks', pd.DataFrame())
         if tracks.empty:
             return []
 
@@ -2539,9 +2532,9 @@ class Song:
             'user_type': 'FALLBACK'
         } for _, row in top_tracks.iterrows()]
 
-    def load_ai_recommendations(self):
-        """Tải AI recommendations cho user"""
-        if not session.current_user or not self.ai_components:
+    def load_mood_recommendations(self):
+        """Tải Mood recommendations cho user"""
+        if not session.current_user or not self.mood_components:
             return
 
         user_id = session.current_user.get("userId")
@@ -2549,19 +2542,19 @@ class Song:
             return
 
         def load_recommendations():
-            recommendations = self.get_ai_recommendations(user_id)
-            self.parent.after(0, lambda: self.display_ai_recommendations(
+            recommendations = self.get_mood_recommendations(user_id)
+            self.parent.after(0, lambda: self.display_mood_recommendations(
                 recommendations))
 
         threading.Thread(target=load_recommendations, daemon=True).start()
 
-    def display_ai_recommendations(self, recommendations):
-        """Hiển thị AI recommendations theo hàng ngang"""
+    def display_mood_recommendations(self, recommendations):
+        """Hiển thị Mood recommendations theo hàng ngang"""
         # Xóa recommendations cũ
-        self.clear_ai_recommendations()
+        self.clear_mood_recommendations()
 
         if not recommendations:
-            print("⚠️ No AI recommendations available")
+            print("No Mood recommendations available")
             return
 
         # Kích thước mỗi item
@@ -2581,27 +2574,28 @@ class Song:
             scrollregion=self.recommendation_canvas.bbox("all"))
         self.recommendation_canvas.configure(xscrollcommand=lambda *args: None)
 
-        self.recommendation_canvas.bind("<Enter>", self.on_ai_recommendation_enter)
-        self.recommendation_canvas.bind("<Leave>", self.on_ai_recommendation_leave)
-        self.recommendation_frame.bind("<Enter>", self.on_ai_recommendation_enter)
-        self.recommendation_frame.bind("<Leave>", self.on_ai_recommendation_leave)
+        self.recommendation_canvas.bind("<Enter>", self.on_mood_recommendation_enter)
+        self.recommendation_canvas.bind("<Leave>", self.on_mood_recommendation_leave)
+        self.recommendation_frame.bind("<Enter>", self.on_mood_recommendation_enter)
+        self.recommendation_frame.bind("<Leave>", self.on_mood_recommendation_leave)
 
-    def on_ai_recommendation_mousewheel(self, event):
-        """Xử lý cuộn bằng chuột cho AI recommendations"""
+    def on_mood_recommendation_mousewheel(self, event):
+        """Xử lý cuộn bằng chuột cho Mood recommendations"""
         self.recommendation_canvas.xview_scroll(-1 * (event.delta // 120),
                                                 "units")
 
-    def on_ai_recommendation_enter(self, event):
-        """Khi chuột vào AI recommendation area - bind mouse wheel để scroll ngang"""
+    def on_mood_recommendation_enter(self, event):
+        """Khi chuột vào Mood recommendation area - bind mouse wheel để
+        scroll ngang"""
         self.recommendation_canvas.bind_all("<MouseWheel>",
-                                            self.on_ai_recommendation_mousewheel)
+                                            self.on_mood_recommendation_mousewheel)
 
-    def on_ai_recommendation_leave(self, event):
-        """Khi chuột rời AI recommendation area - unbind để trả lại scroll dọc"""
+    def on_mood_recommendation_leave(self, event):
+        """Khi chuột rời Mood recommendation area - unbind để trả lại scroll dọc"""
         self.recommendation_canvas.unbind_all("<MouseWheel>")
 
-    def clear_ai_recommendations(self):
-        """Xóa tất cả AI recommendations hiện tại"""
+    def clear_mood_recommendations(self):
+        """Xóa tất cả Mood recommendations hiện tại"""
         for item in self.recommendation_items:
             if 'frame' in item and item['frame'].winfo_exists():
                 item['frame'].destroy()
@@ -3254,12 +3248,12 @@ class Song:
     def register_song_change_callback(self, callback):
         """Đăng ký callback khi bài hát thay đổi"""
         self.song_change_callbacks.append(callback)
-        print(f"✅ Song: Đã đăng ký song change callback: {len(self.song_change_callbacks)}")
+        print(f"Song: Đã đăng ký song change callback: {len(self.song_change_callbacks)}")
 
     def notify_song_changed(self, song, source="main"):
         """Thông báo bài hát thay đổi đến tất cả listeners - XỬ LÝ CALLBACK AN TOÀN"""
-        print(f"🔔 Song Notify song changed from {source}: {song.get('trackName', 'Unknown')}")
-        print(f"   📢 Số lượng callbacks: {len(self.song_change_callbacks)}")
+        print(f"Song Notify song changed from {source}: {song.get('trackName', 'Unknown')}")
+        print(f"Số lượng callbacks: {len(self.song_change_callbacks)}")
 
         self.current_song = song
 
@@ -3983,7 +3977,7 @@ class SongListManager:
                 messagebox.showerror("Error", "Failed to add song to playlist!")
         except Exception as e:
             messagebox.showerror("Error", f"Error adding song: {str(e)}")
-            print(f"❌ Lỗi chi tiết: {e}")
+            print(f"Lỗi chi tiết: {e}")
 
     def _return_to_playlist(self, playlist_name):
         """Quay lại hiển thị playlist sau khi thêm bài hát"""

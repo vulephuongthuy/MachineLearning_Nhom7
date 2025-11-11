@@ -1,4 +1,7 @@
 import pandas as pd
+import time
+
+import session
 
 
 def load_data_from_mongodb(db_connection):
@@ -213,16 +216,14 @@ def recommend_for_new_user(user_id, components, db_connection, top_n=10,
     ratings_df = mongodb_data['ratings']
     favorites_df = mongodb_data['favorites_with_artist']
 
-    #LẤY MOOD MỚI NHẤT TỪ MONGODB
+    # LẤY MOOD MỚI NHẤT TỪ SESSION
     try:
-        latest_mood = db_connection.db["mood_tracking_history"].find_one(
-            {"userId": user_id}, sort=[("timestamp", -1)]
-        )
-        current_mood_id = latest_mood.get("moodID", 1) if latest_mood else 1
+        current_mood_data = session.current_user.get("current_mood", {})
+        current_mood_id = current_mood_data.get("moodID", 1)
         print(
-            f"Latest moodID from MongoDB for user {user_id}: {current_mood_id}")
+            f"Current moodID from session for user {user_id}: {current_mood_id}")
     except Exception as e:
-        print(f"Error getting mood from MongoDB: {e}")
+        print(f"Error getting mood from session: {e}")
         current_mood_id = 1
 
     system_top = get_system_top_artists_genres(favorites_df)
@@ -313,16 +314,14 @@ def recommend_for_user(user_id, components, db_connection, top_n=10,
     model = components['model']
     feature_cols = components['feature_cols']
 
-    #LẤY MOOD MỚI NHẤT TỪ MONGODB
+    # LẤY MOOD MỚI NHẤT TỪ SESSION
     try:
-        latest_mood = db_connection.db["mood_tracking_history"].find_one(
-            {"userId": user_id}, sort=[("timestamp", -1)]
-        )
-        current_mood_id = latest_mood.get("moodID", 1) if latest_mood else 1
+        current_mood_data = session.current_user.get("current_mood", {})
+        current_mood_id = current_mood_data.get("moodID", 1)
         print(
-            f"Latest moodID from MongoDB for user {user_id}: {current_mood_id}")
+            f"Current moodID from session for user {user_id}: {current_mood_id}")
     except Exception as e:
-        print(f"Error getting mood from MongoDB: {e}")
+        print(f"Error getting mood from session: {e}")
         current_mood_id = 1
 
     #Kiểm tra user mới

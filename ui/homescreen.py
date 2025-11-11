@@ -3635,11 +3635,22 @@ class Song:
 
                 next_song = db.db["tracks"].find_one(
                     {"trackId": next_track_id})
-
                 if next_song:
                     print(f"🎵 Phát bài tiếp theo: {next_song['trackName']}")
                     self.repeat_once_flag = False
                     self.notify_song_changed(next_song, "next_song")
+                    try:
+                        db = self.controller.get_db()
+                        user_id = int(session.current_user.get("userId"))
+                        track_id = next_song.get("trackId")
+                        existing = db.db["user_favorite"].find_one({
+                            "userId": user_id,
+                            "trackId": track_id
+                        })
+                        is_favorite = existing is not None
+                        self.notify_love_changed(next_song, is_favorite)
+                    except Exception as e:
+                        print(f"❌ Lỗi auto-sync love: {e}")
                     self.on_song_click(next_song["trackId"])
                 return
 

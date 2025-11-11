@@ -311,12 +311,6 @@ class MoodPlayerFrame(Frame):
         self.songs_manager = songs_manager
         print("🎵 DEBUG: MoodPlayerFrame đã nhận REAL shared state")
 
-        # # 🔥 DEBUG QUAN TRỌNG: XEM THỰC SỰ SONGS_MANAGER LÀ GÌ
-        # print(f"   - Type của songs_manager: {type(songs_manager)}")
-        # print(f"   - Class name: {songs_manager.__class__.__name__}")
-        # print(f"   - Có register_song_change_callback: {hasattr(songs_manager, 'register_song_change_callback')}")
-        # print(f"   - Có register_repeat_callback: {hasattr(songs_manager, 'register_repeat_callback')}")
-
         # 🔥 CHỈ GIỮ 1 CALLBACK DUY NHẤT
         if hasattr(songs_manager, 'register_song_change_callback'):
             # Xóa tất cả callback cũ
@@ -815,6 +809,7 @@ class MoodPlayerFrame(Frame):
                     self.update_disc(song)
                     self.show_pause_button()
                     self.update_progress(0)  # Tạm thời hiển thị 0s
+                    self.sync_love_state(song)
 
                     self.update_recommendations_for_new_track(track_id)
                     self.update_tracklist_simple(song)

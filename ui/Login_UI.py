@@ -321,57 +321,79 @@ class SignUpFrame(Frame):
         except Exception as e:
             messagebox.showerror("Error", f"Registration failed: {e}")
 
-    def send_welcome_email(self, user_email):
-        email_address = "thutna23416@st.uel.edu.vn"
-        app_password = "wyas ubap nhqv wwap"
-
-
-        msg = MIMEMultipart('related')
-
-        msg["From"] = email_address
+    def send_welcome_email(self, user_email: str):
+        """Gửi email chào mừng khi người dùng đăng ký thành công."""
+        SENDER_EMAIL = "thutna23416@st.uel.edu.vn"
+        APP_PASSWORD = "wyas ubap nhqv wwap"
+        # Validate email
+        if "@" not in user_email:
+            print(f"Email không hợp lệ: {user_email}")
+            return
+        # Tạo email multipart
+        msg = MIMEMultipart("related")
+        msg["From"] = SENDER_EMAIL
         msg["To"] = user_email
-        msg["Subject"] = "Welcome to Moo_d!"
-
-        # Gán một ID cố định cho ảnh
-        image_cid = 'welcome_image'
-
-        body = f"""
+        msg["Subject"] = "🎧 Welcome to Moo_d Music!"
+        image_cid = "welcome_image"
+        # HTML Template đẹp + gọn + responsive
+        html_body = f"""
         <html>
-        <head></head>
-        <body>
-            <p>Hi there,</p
-            <p>Thank you for signing up for Moo_d Music – your new favorite place to vibe, discover, and enjoy music that matches your mood.</p>
-            <p>We're thrilled to have you on board!</p>
+        <body style="font-family: Arial, sans-serif; color: #333; padding: 0 10px;">
+            <h2 style="color:#F2829E;">Welcome to Moo_d Music! 🎶</h2>
 
-            <p><img src="cid:{image_cid}" alt="Welcome to Moo_d" style="width:100%; max-width:400px;"></p>
+            <p>Hi there,</p>
+            <p>Thank you for signing up for <b>Moo_d Music</b> – 
+            your new favorite place to vibe, discover, and enjoy music that matches your mood.</p>
 
-            <p>Stay tuned for curated playlists, personalized mood tracks, and fresh beats tailored just for you.</p>
-            <p>Let's set the Moo_d together.</p>
             <p>
-                Cheers,<br>  
-                The Moo_d Team
+                We're thrilled to have you on board!  
+                Here’s a warm welcome from our team:
+            </p>
+
+            <div style="text-align:center; margin: 25px 0;">
+                <img src="cid:{image_cid}" 
+                     alt="Welcome to Moo_d" 
+                     style="width:100%; max-width:420px; border-radius:12px;">
+            </div>
+
+            <p>
+                Stay tuned for curated playlists, mood-based recommendations <br>
+                and fresh beats tailored just for you.
+            </p>
+
+            <p>Let's set the Moo_d together! 🌙✨</p>
+
+            <p style="margin-top: 35px;">
+                Cheers,<br>
+                <b>The Moo_d Team</b>
             </p>
         </body>
         </html>
         """
-        msg.attach(MIMEText(body, "html"))
-        image_filename = os.path.join('images', 'welcome.png')
-        try:
-            with open(image_filename, 'rb') as fp:
-                img_data = fp.read()
-            img = MIMEImage(img_data, name=os.path.basename(image_filename))
-            img.add_header('Content-ID', f'<{image_cid}>')
-            msg.attach(img)
-        except FileNotFoundError:
-            print(f"Lỗi: Không tìm thấy tệp ảnh tại '{image_filename}'. Email sẽ được gửi không có ảnh.")
-        except Exception as e:
-            print(f"Lỗi khi đính kèm ảnh: {e}")
+
+        msg.attach(MIMEText(html_body, "html", "utf-8"))
+
+        image_path = Path("images/welcome.png")
+        if image_path.exists():
+            try:
+                with open(image_path, "rb") as f:
+                    img_data = f.read()
+                img = MIMEImage(img_data, name=image_path.name)
+                img.add_header("Content-ID", f"<{image_cid}>")
+                msg.attach(img)
+            except Exception as e:
+                print(f" Lỗi khi đính ảnh: {e}")
+        else:
+            print(f" Không tìm thấy ảnh tại: {image_path}")
+
+        # Gửi email qua SMTP
         try:
             with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-                server.login(email_address, app_password)
-                server.sendmail(email_address, user_email, msg.as_string())
+                server.login(SENDER_EMAIL, APP_PASSWORD)
+                server.sendmail(SENDER_EMAIL, user_email, msg.as_string())
+            print(f"Email chào mừng đã gửi thành công đến {user_email}")
         except Exception as e:
-            print(f"Lỗi khi gửi email đến {user_email}: {e}")
+            print(f" Lỗi khi gửi email: {e}")
 
     def go_back(self):
         """Quay lại màn hình đăng nhập"""

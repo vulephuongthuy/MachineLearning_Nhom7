@@ -6,11 +6,14 @@ import random
 import numpy as np
 import pandas as pd
 import os
+
+from sklearn.compose import ColumnTransformer
 from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.preprocessing import MinMaxScaler, OneHotEncoder, StandardScaler
 
 # --- TẢI MÔ HÌNH ---
 base_dir = os.path.dirname(os.path.abspath(__file__))
-master_feature_path = os.path.join(base_dir, "models/master_features.pkl")
+master_feature_path = os.path.join(base_dir, "models/master_features2.pkl")
 mf_model_path = os.path.join(base_dir, "models/mf_model.pkl")
 
 try:
@@ -208,7 +211,7 @@ def simple_similarity_filtering(purchased_track_ids, candidate_tracks, top_k=50)
         if purchased_tracks_features.empty:
             return candidate_tracks.nlargest(top_k, 'popularity_score')
 
-        feature_columns = ['recency_score', 'unique_listeners', 'favorite_count']
+        feature_columns = ['trackTimeMillis','recency_score']
         purchased_features = purchased_tracks_features[feature_columns].fillna(0)
         candidate_features = candidate_tracks[feature_columns].fillna(0)
 
@@ -223,8 +226,7 @@ def simple_similarity_filtering(purchased_track_ids, candidate_tracks, top_k=50)
         candidate_scaled = scaler.transform(candidate_features)
 
         similarities = cosine_similarity(purchased_scaled, candidate_scaled)
-        # similarities = cosine_similarity(purchased_features, candidate_features)
-        avg_similarities = similarities.mean(axis=0)
+        avg_similarities = similarities.max(axis=0)
 
         candidate_tracks = candidate_tracks.copy()
         candidate_tracks['similarity'] = avg_similarities
@@ -240,41 +242,37 @@ def calculate_track_score(user_id, track, purchased_artists=None):
     score = 0.0
     track_id_str = str(track['trackId'])
 
-    # 1. Matrix Factorization Score
+    # 1. Matrix Factorization Score - CF
     mf_score = 0
+    has_mf_score = False
+
     if mf_model and str(user_id) in mf_model['user_idx_map'] and track_id_str in mf_model['track_idx_map']:
         u_idx = mf_model['user_idx_map'][str(user_id)]
         i_idx = mf_model['track_idx_map'][track_id_str]
         mf_score = float(mf_model['R_pred'][u_idx, i_idx])
+        has_mf_score = True
+    elif mf_model and track_id_str in mf_model['track_idx_map']:
+        # Warm start: dùng average score của track từ tất cả users
+        i_idx = mf_model['track_idx_map'][track_id_str]
+        track_scores = mf_model['R_pred'][:, i_idx]
+        mf_score = float(np.mean(track_scores[track_scores > 0]))
+        # Giảm trọng số vì đây là average
+        mf_score *= 0.7
 
-    # Adaptive MF contribution based on score confidence
-    if mf_score > 0.25:
-        score += 0.40 * mf_score
-    elif mf_score > 0.20:
-        score += 0.25 * mf_score
+    # 2. Content-based Similarity Score
+    content_based_score = track.get('similarity', 0)
+
+    if has_mf_score:
+        score += 0.50 * mf_score
+        score += 0.40 * content_based_score
     else:
-        score += 0.10 * mf_score
-
-    # 2. Content Quality Score
-    # Engagement metrics
-    listeners = track.get('unique_listeners', 0)
-    favorites = track.get('favorite_count', 0)
-    plays = track.get('total_plays', 0)
-
-    engagement = min(1.0, (np.log1p(listeners) * 0.4
-                           + np.log1p(favorites) * 0.4
-                           + np.log1p(plays) * 0.2) / 6.0)
-    score += 0.30 * engagement
-
-    if track.get('rating_count', 0) >= 3:
-        score += 0.05 * (track.get('avg_rating', 0) / 5.0)
-
-    score += 0.15 * track.get('recency_score', 0)
+        score += 0.20 * mf_score
+        score += 0.80 * content_based_score
 
     if purchased_artists and str(track.get('artistId', '')) in purchased_artists:
         score += 0.05
 
-    score += 0.05 * random.uniform(0.0, 1.0)  # Reduced randomness
+    score += 0.05 * random.uniform(0.0, 1.0)
 
     return float(np.clip(score, 0.1, 1.0))
 
@@ -320,7 +318,7 @@ def recommend_tracks_for_genre(user_id, genre, purchased_tracks, purchased_artis
             artist = track_data['artist']
             current_score = track_data['score']
 
-            max_per_artist = 3 if current_score > 0.7 else 2 if current_score > 0.5 else 1
+            max_per_artist = 3 if current_score > 0.7 else 2 if current_score > 0.25 else 1
 
             if artist_count.get(artist, 0) < max_per_artist:
                 track = track_data['track']
@@ -335,6 +333,7 @@ def recommend_tracks_for_genre(user_id, genre, purchased_tracks, purchased_artis
                     'avg_rating': track['avg_rating']
                 })
                 artist_count[artist] = artist_count.get(artist, 0) + 1
+        print(f"Score range: {min(t['score'] for t in final_tracks):.3f} - {max(t['score'] for t in final_tracks):.3f}")
         return final_tracks
 
     except Exception as e:

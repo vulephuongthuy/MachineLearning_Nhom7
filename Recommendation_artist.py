@@ -66,7 +66,6 @@ def recommend_for_user(user_id, top_n=8, n_neighbors=60, months_back=3, verbose=
     try:
         if model_artist is None or pivot_artist is None:
             return get_popular_artists(top_n)
-
         # --- LOAD USER HISTORY ---
         user_hist = pd.DataFrame(list(db.user_history.find(
             {"userId": str(user_id)},
@@ -93,7 +92,6 @@ def recommend_for_user(user_id, top_n=8, n_neighbors=60, months_back=3, verbose=
         recent_df = user_hist[user_hist["LastPlayedAt"] >= cutoff_date]
         if recent_df.empty:
             recent_df = user_hist
-
         top_recent_artists = recent_df["artistName"].value_counts().head(10).index.tolist()
 
         # --- CF SIMILARITY RETRIEVAL ---
@@ -149,16 +147,13 @@ def recommend_for_user(user_id, top_n=8, n_neighbors=60, months_back=3, verbose=
 
             # 5 từ phổ biến (để đảm bảo dễ nghe, không shock gu)
             p = pop[~pop["artist"].isin(f["artist"])].head(5)
-
             selected = pd.concat([f, p])
-
             # NEW: EP FILL ĐỦ 8 NGƯỜI
             if len(selected) < 8:
                 need = 8 - len(selected)
 
                 # chọn từ new diversity
                 fill = new_div[~new_div["artist"].isin(selected["artist"])].head(need)
-
                 selected = pd.concat([selected, fill])
 
             # nếu vẫn thiếu → fallback toàn hệ thống

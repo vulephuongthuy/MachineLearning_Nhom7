@@ -1,11 +1,9 @@
 import datetime as dt
-import shutil
 from datetime import datetime
 import threading
-import time
 import tkinter
 from tkinter import Menu, PhotoImage, Entry, Scale, Canvas, Frame, \
-    messagebox, Label, filedialog
+    messagebox, Label
 from tkinter.constants import HORIZONTAL
 from urllib.request import urlopen
 import pymongo
@@ -16,7 +14,6 @@ import vlc
 from PIL.Image import Resampling
 from customtkinter import CTkButton
 
-import session
 from Recommendation_mood import *
 from functions import *
 from ui.Login_UI import ProfileFrame
@@ -25,9 +22,8 @@ import tempfile
 import os
 import pandas as pd
 import tkinter as tk
-from ui.musicplayer import MoodPlayerFrame,RatingFrame,SongMoodsFrame
+from ui.musicplayer import MoodPlayerFrame,RatingFrame
 from Song_mood_manager import MoodManager
-from Rating_manager import RatingManager
 
 from ui.WrapUp_UI import WrapUpFrame
 
@@ -166,7 +162,7 @@ class MainScreen(Frame):
         from ui.ArtistDetail_UI import ArtistDetailFrame
         self.artist_frame = ArtistDetailFrame(self, self.controller, artist_name)
         self.current_content_frame = self.artist_frame
-        print(f"✅ Đã mở ArtistDetail cho: {artist_name}")
+        print(f"Đã mở ArtistDetail cho: {artist_name}")
 
     def hide_current_content(self):
         """Ẩn frame content hiện tại - CHỈ ẨN, KHÔNG DESTROY SONG FRAME"""
@@ -192,16 +188,6 @@ class MainScreen(Frame):
                 except:
                     continue
 
-    # def show_default_content(self):
-    #     """Hiển thị content mặc định"""
-    #     if self.profile_frame:
-    #         self.profile_frame.destroy()
-    #         self.profile_frame = None
-    #     if self.wrapup_frame:
-    #         self.wrapup_frame.destroy()
-    #         self.wrapup_frame = None
-    #     self.profile_area.place_forget()
-
     def show_default_content(self):
         """Hiển thị content mặc định - OVERRIDE để ẩn custom frames"""
         # Ẩn tất cả custom frames trước
@@ -215,11 +201,6 @@ class MainScreen(Frame):
             self.wrapup_frame.destroy()
             self.wrapup_frame = None
         self.profile_area.place_forget()
-
-        # # Hiển thị songs content
-        # if hasattr(self, 'songs'):
-        #     self.songs.canvas.place(x=105, y=90)
-        #     self.songs.fixed_canvas.place(x=50, y=525)
 
     def open_profile(self):
         """Mở ProfileFrame như frame con, chừa toolbar"""
@@ -259,15 +240,15 @@ class MainScreen(Frame):
             else:
                 if self.sleeptimer_frame.winfo_ismapped():
                     self.sleeptimer_frame.place_forget()
-                    print("🩶 SleepTimerFrame hidden.")
+                    print("SleepTimerFrame hidden.")
                 else:
                     self.sleeptimer_frame.place(x=650, y=290, width=300,
                                                 height=200)
                     self.sleeptimer_frame.lift()
-                    print("🩵 SleepTimerFrame shown again.")
+                    print("SleepTimerFrame shown again.")
         except Exception as e:
             import traceback
-            print("❌ Lỗi khi mở SleepTimer:", e)
+            print("Lỗi khi mở SleepTimer:", e)
             traceback.print_exc()
 
     def open_player(self):
@@ -277,7 +258,7 @@ class MainScreen(Frame):
         self.player_area.place(x=50, y=0, width=950, height=600)
 
         # 🔥 BỎ FAKE DATA - DÙNG STATE THẬT
-        print("🎵 DEBUG: Current REAL state từ MainScreen:")
+        print("DEBUG: Current REAL state từ MainScreen:")
         print(f"  - Current song: {self.songs.current_song}")
         print(f"  - Is playing: {self.songs.is_playing}")
         print(f"  - Is paused: {self.songs.is_paused}")
@@ -288,7 +269,7 @@ class MainScreen(Frame):
             self.player_frame.destroy()
             self.player_frame = None
 
-        print("🎵 DEBUG: Creating new MoodPlayerFrame...")
+        print("DEBUG: Creating new MoodPlayerFrame...")
         self.player_frame = MoodPlayerFrame(
             parent=self.player_area,
             controller=self.controller
@@ -299,14 +280,14 @@ class MainScreen(Frame):
 
         if hasattr(self.player_frame, 'register_main_callback'):
             self.player_frame.register_main_callback(self.on_song_changed_from_player)
-            print("✅ Đã đăng ký callback từ player")
+            print("Đã đăng ký callback từ player")
 
         self.player_frame.place(x=0, y=0, width=950, height=600)
-        print("🎵 DEBUG: MoodPlayerFrame created and placed")
+        print("DEBUG: MoodPlayerFrame created and placed")
 
     def on_song_changed_from_player(self, song):
         """Được gọi khi Player thay đổi bài hát"""
-        print(f"🔄 HomeScreen nhận bài hát mới từ Player: {song.get('trackName', 'Unknown')}")
+        print(f"HomeScreen nhận bài hát mới từ Player: {song.get('trackName', 'Unknown')}")
         # Cập nhật MainScreen
         if hasattr(self, 'songs'):
             self.songs.current_song = song
@@ -315,56 +296,56 @@ class MainScreen(Frame):
     def register_song_change_callback(self, callback):
         """Đăng ký callback khi bài hát thay đổi"""
         self.song_change_callbacks.append(callback)
-        print(f"✅ Đã đăng ký song change callback: {len(self.song_change_callbacks)}")
+        print(f"Đã đăng ký song change callback: {len(self.song_change_callbacks)}")
 
     def notify_song_changed(self, song, source="main"):
         """Thông báo bài hát thay đổi đến tất cả listeners"""
-        print(f"🔔 Notify song changed from {source}: {song.get('trackName', 'Unknown')}")
-        self.parent.current_song = song  # 🔥 LUÔN CẬP NHẬT CURRENT_SONG
+        print(f"Notify song changed from {source}: {song.get('trackName', 'Unknown')}")
+        self.parent.current_song = song  #LUÔN CẬP NHẬT CURRENT_SONG
 
         for callback in self.song_change_callbacks:
             try:
                 callback(song)
             except Exception as e:
-                print(f"❌ Callback error: {e}")
+                print(f"Callback error: {e}")
 
     def setup_repeat_callbacks(self):
         """Thiết lập callback cho repeat mode trong MainScreen"""
         if hasattr(self, 'songs') and hasattr(self.songs, 'register_repeat_callback'):
             self.songs.register_repeat_callback(self.update_main_repeat_ui)
-            print("✅ MainScreen: Đã đăng ký repeat callback")
-            # 🔥 DEBUG: KIỂM TRA SỐ LƯỢNG CALLBACK
+            print("MainScreen: Đã đăng ký repeat callback")
+            #DEBUG: KIỂM TRA SỐ LƯỢNG CALLBACK
             print(f"   - Số lượng repeat_callbacks: {len(self.songs.repeat_callbacks)}")
         else:
-            print("❌ MainScreen: Không thể đăng ký callback")
+            print("MainScreen: Không thể đăng ký callback")
 
     def update_main_repeat_ui(self, mode):
         """Cập nhật giao diện nút repeat trong MainScreen - GỌI HÀM CÓ SẴN"""
-        print(f"🔄 MainScreen nhận repeat mode: {mode}")
+        print(f"MainScreen nhận repeat mode: {mode}")
         print(f"   - Có buttons: {hasattr(self, 'buttons')}")
         print(f"   - Có toggle_repeat: {hasattr(self.buttons, 'toggle_repeat')}")
 
-        # 🔥 GỌI HÀM TOGGLE_REPEAT CÓ SẴN TRONG BUTTON
+        #GỌI HÀM TOGGLE_REPEAT CÓ SẴN TRONG BUTTON
         if hasattr(self, 'buttons') and hasattr(self.buttons, 'toggle_repeat'):
             # Cập nhật repeat_mode trước
             self.songs.repeat_mode = mode
             # Gọi hàm toggle_repeat với mode cụ thể
             self.buttons.toggle_repeat(mode)
-            print(f"✅ MainScreen: Đã gọi toggle_repeat với mode {mode}")
+            print(f"MainScreen: Đã gọi toggle_repeat với mode {mode}")
         else:
-            print("❌ MainScreen: Không thể gọi toggle_repeat")
+            print("MainScreen: Không thể gọi toggle_repeat")
 
     def setup_love_callbacks(self):
         """Thiết lập callback cho love song trong MainScreen"""
         if hasattr(self, 'songs') and hasattr(self.songs, 'register_love_callback'):
             self.songs.register_love_callback(self.update_main_love_ui)
-            print("✅ MainScreen: Đã đăng ký love callback")
+            print("MainScreen: Đã đăng ký love callback")
 
     def update_main_love_ui(self, song, is_favorite):
         """Cập nhật giao diện nút love trong MainScreen"""
-        print(f"❤️ MainScreen nhận love state: {song.get('trackName')} -> {is_favorite}")
+        print(f"MainScreen nhận love state: {song.get('trackName')} -> {is_favorite}")
 
-        # 🔥 CẬP NHẬT UI NẾU LÀ BÀI HÁT HIỆN TẠI
+        #CẬP NHẬT UI NẾU LÀ BÀI HÁT HIỆN TẠI
         if hasattr(self, 'songs') and self.songs.current_song and \
                 self.songs.current_song.get('trackId') == song.get('trackId'):
             if hasattr(self, 'buttons') and hasattr(self.buttons, 'update_love_button'):
@@ -375,7 +356,7 @@ class MainScreen(Frame):
         self.rating_area.place(x=325, y=200, width=250, height=200)
 
         if self.rating_frame:
-            self.rating_frame.destroy()  # 🔥 CHỈ DESTROY RATING FRAME CŨ
+            self.rating_frame.destroy()  #CHỈ DESTROY RATING FRAME CŨ
 
         self.rating_frame = RatingFrame(
             parent=self.rating_area,
@@ -386,11 +367,11 @@ class MainScreen(Frame):
 
     def hide_player(self):
         """Ẩn player frame và pause nhạc"""
-        # 🔥 PAUSE NHẠC KHI ẨN PLAYER
+        #PAUSE NHẠC KHI ẨN PLAYER
         if hasattr(self, 'songs') and self.songs.is_playing:
             print("⏸️ Tạm dừng nhạc khi ẩn Player...")
             # self.songs.player.pause()  # Pause audio thật
-            # 🔥 GIỮ STATE: vẫn playing nhưng audio paused
+            # GIỮ STATE: vẫn playing nhưng audio paused
             # self.songs.is_playing = True
             # self.songs.is_paused = True
 
@@ -409,9 +390,9 @@ class MainScreen(Frame):
                     if player.is_playing():
                         player.stop()
                     player.release()
-                    print("🎵 Music stopped before logout.")
+                    print("Music stopped before logout.")
             else:
-                print("⚠️ Không tìm thấy songs.player để dừng.")
+                print("Không tìm thấy songs.player để dừng.")
             # Gọi logout của controller
             self.controller.logout()
 
@@ -430,7 +411,7 @@ class MainScreen(Frame):
 
         # Kiểm tra xem all_tracks đã được load chưa
         if not hasattr(self, 'all_tracks') or not self.all_tracks:
-            print("⚠️ Chưa có dữ liệu bài hát để tìm kiếm")
+            print("Chưa có dữ liệu bài hát để tìm kiếm")
             return
 
         query_words = query.split()
@@ -511,13 +492,13 @@ class MainScreen(Frame):
     def create_suggestion_item(self, song):
         """Tạo 1 hàng gợi ý - Click anywhere works"""
         pink_bg = self.suggestion_color  # Màu nền ban đầu: #FDEFF2 (hồng nhạt)
-        pink_hover = "#F8C8D8"  # 🎯 Màu hồng đậm hơn khi hover
+        pink_hover = "#F8C8D8"  # Màu hồng đậm hơn khi hover
 
         # Frame chính
         item_frame = tk.Frame(self.suggestion_frame, bg=pink_bg)
         item_frame.pack(fill="x", expand=True, padx=2, pady=1)
 
-        # 🎯 Đặt tag để nhận diện
+        # Đặt tag để nhận diện
         item_frame.song_data = song
 
         # Frame ảnh
@@ -554,7 +535,7 @@ class MainScreen(Frame):
                                 fg="#E08DA8", anchor="w", font=("Arial", 8))
         artist_label.pack(fill="x")
 
-        # 🎯 Hàm xử lý sự kiện với màu hồng đậm
+        # Hàm xử lý sự kiện với màu hồng đậm
         def handle_click(event):
             # Tìm frame cha chứa song data
             widget = event.widget
@@ -568,7 +549,7 @@ class MainScreen(Frame):
             while widget and not hasattr(widget, 'song_data'):
                 widget = widget.master
             if widget:
-                # 🎯 ĐỔI MÀU HỒNG ĐẬM
+                # ĐỔI MÀU HỒNG ĐẬM
                 widget.config(bg=pink_hover, cursor="hand2")
                 # Cập nhật màu cho tất cả children
                 for child in widget.winfo_children():
@@ -582,7 +563,7 @@ class MainScreen(Frame):
             while widget and not hasattr(widget, 'song_data'):
                 widget = widget.master
             if widget:
-                # 🎯 TRỞ VỀ MÀU HỒNG NHẠT BAN ĐẦU
+                # TRỞ VỀ MÀU HỒNG NHẠT BAN ĐẦU
                 widget.config(bg=pink_bg, cursor="")
                 # Cập nhật màu cho tất cả children
                 for child in widget.winfo_children():
@@ -591,7 +572,7 @@ class MainScreen(Frame):
                     except:
                         pass
 
-        # 🎯 Bind cho TẤT CẢ widgets trong item
+        # Bind cho TẤT CẢ widgets trong item
         all_widgets = [item_frame, img_frame, img_label, text_frame,
                        track_label, artist_label]
         for widget in all_widgets:
@@ -640,52 +621,52 @@ class MainScreen(Frame):
 
     def handle_suggestion_click(self, song):
         """Xử lý click vào suggestion item - ĐỌC TRỰC TIẾP TỪ DB"""
-        print(f"🎵 Click bài hát: {song.get('trackName')}")
+        print(f"Click bài hát: {song.get('trackName')}")
 
         track_id = str(song.get('trackId'))
         track_name = song.get('trackName')
 
-        # 🎯 KIỂM TRA TRỰC TIẾP TỪ DB - LUÔN CÓ DATA MỚI NHẤT
+        # KIỂM TRA TRỰC TIẾP TỪ DB - LUÔN CÓ DATA MỚI NHẤT
         if self.is_track_purchased(track_id):
             # ĐÃ MUA - PLAY NGAY
-            print(f"✅ Đã mua, đang phát: {track_name}")
+            print(f"Đã mua, đang phát: {track_name}")
             self.songs.on_song_click(track_id)
             self.suggestion_container.place_forget()
             self.buttons.search_entry.delete(0, 'end')
         else:
             # CHƯA MUA - HIỆN MESSAGE BOX
-            print(f"❌ Chưa mua, hiện message box: {track_name}")
+            print(f"Chưa mua, hiện message box: {track_name}")
             response = messagebox.askyesno(
                 "Bài hát chưa mua",
                 f"Bạn chưa mua bài hát '{track_name}'.\n\nBạn có muốn mua bài hát này?",
                 icon='question'
             )
             if response:
-                print(f"🎯 User chọn mua: {track_name}")
+                print(f"User chọn mua: {track_name}")
                 self.open_payment_for_song(song)
             else:
-                print(f"❌ User từ chối mua: {track_name}")
+                print(f"User từ chối mua: {track_name}")
 
     def is_track_purchased(self, track_id):
         """Kiểm tra trực tiếp từ DB xem track đã được mua chưa - XỬ LÝ CẢ STRING VÀ NUMBER"""
         try:
             user_id = session.current_user.get("userId")
             if not user_id:
-                print("⚠️ Chưa có user ID")
+                print("Chưa có user ID")
                 return False
 
             db = self.controller.get_db()
 
-            # 🎯 CHUẨN HÓA ID
+            # CHUẨN HÓA ID
             user_id_str = str(user_id)
             track_id_str = str(track_id)
 
-            # 🎯 DEBUG
+            # DEBUG
             print(f"🔍 IS_TRACK_PURCHASED DEBUG:")
             print(f"   User ID: {user_id_str}")
             print(f"   Track ID: {track_id_str}")
 
-            # 🎯 QUERY LINH HOẠT - THỬ CẢ STRING VÀ NUMBER
+            # QUERY LINH HOẠT - THỬ CẢ STRING VÀ NUMBER
             queries = [
                 # Thử với string trước (cách MainScreen đang dùng)
                 {"userId": user_id_str, "trackId": track_id_str},
@@ -698,15 +679,15 @@ class MainScreen(Frame):
             for i, query in enumerate(queries):
                 purchase = db.db["purchase"].find_one(query)
                 if purchase:
-                    print(f"✅ FOUND PURCHASE với query {i + 1}: {query}")
+                    print(f"FOUND PURCHASE với query {i + 1}: {query}")
                     print(f"   Track: {purchase.get('trackName')}")
                     return True
 
-            print(f"❌ PURCHASE NOT FOUND với mọi query")
+            print(f"PURCHASE NOT FOUND với mọi query")
             return False
 
         except Exception as e:
-            print(f"❌ Lỗi kiểm tra purchase: {e}")
+            print(f"Lỗi kiểm tra purchase: {e}")
             import traceback
             traceback.print_exc()
             return False
@@ -726,7 +707,7 @@ class MainScreen(Frame):
                     payment_frame = self.controller.frames["Payment"]
                     if hasattr(payment_frame, 'set_track'):
                         payment_frame.set_track(song)
-                        print(f"✅ Đã chuyển bài hát đến Payment: {song.get('trackName')}")
+                        print(f"Đã chuyển bài hát đến Payment: {song.get('trackName')}")
 
             # Cách 2: Dùng master nếu controller không có show_frame
             elif hasattr(self, 'master') and hasattr(self.master, 'show_frame'):
@@ -734,20 +715,20 @@ class MainScreen(Frame):
 
             # Cách 3: Fallback - thử truy cập trực tiếp
             else:
-                print("⚠️ Không tìm thấy controller, thử cách khác...")
+                print("Không tìm thấy controller, thử cách khác...")
                 # Tìm Payment frame trong parent
                 for widget in self.master.winfo_children():
                     if hasattr(widget, '__class__') and widget.__class__.__name__ == "PaymentFrame":
                         widget.lift()
                         if hasattr(widget, 'set_track'):
                             widget.set_track(song)
-                        print(f"✅ Đã tìm thấy và chuyển đến Payment frame")
+                        print(f"Đã tìm thấy và chuyển đến Payment frame")
                         break
                 else:
-                    print("❌ Không thể truy cập Payment frame")
+                    print("Không thể truy cập Payment frame")
 
         except Exception as e:
-            print(f"❌ Lỗi mở Payment: {e}")
+            print(f"Lỗi mở Payment: {e}")
             messagebox.showerror("Lỗi", "Không thể mở trang thanh toán")
 
 
@@ -764,7 +745,7 @@ class MainScreen(Frame):
             img = Image.open(BytesIO(response.content))
             img = img.resize(size, Image.Resampling.LANCZOS)
 
-            # 🎯 QUAN TRỌNG: Giới hạn số lượng image cache
+            #QUAN TRỌNG: Giới hạn số lượng image cache
             if len(self.image_cache) > 1000:
                 # Xóa một nửa cache cũ để tránh memory leak
                 keys_to_remove = list(self.image_cache.keys())[:500]
@@ -783,12 +764,12 @@ class MainScreen(Frame):
                         label.config(image=photo)
                         label.image = photo
                 except (tk.TclError, AttributeError) as e:
-                    print(f"⚠️ Widget không tồn tại khi update ảnh: {e}")
+                    print(f"Widget không tồn tại khi update ảnh: {e}")
 
             self.after(0, update_ui)
 
         except Exception as e:
-            print(f"❌ Lỗi tải ảnh {url}: {e}")
+            print(f"Lỗi tải ảnh {url}: {e}")
 
             def set_default():
                 try:
@@ -805,9 +786,9 @@ class MainScreen(Frame):
             db = self.controller.get_db()
             # Lấy tất cả tracks từ database, giới hạn 1000 bài để tránh quá tải
             self.all_tracks = list(db.db["tracks"].find())
-            print(f"✅ Đã load {len(self.all_tracks)} bài hát cho tìm kiếm")
+            print(f"Đã load {len(self.all_tracks)} bài hát cho tìm kiếm")
         except Exception as e:
-            print(f"❌ Lỗi khi load tracks: {e}")
+            print(f"Lỗi khi load tracks: {e}")
             self.all_tracks = []
 
 
@@ -974,8 +955,8 @@ class Button:
         if view_type == "profile":
             self.parent.open_profile()
         elif view_type == "home":
-            self.parent.songs.load_ai_recommendations() if hasattr(
-                self.parent.songs, 'load_ai_recommendations') else None
+            self.parent.songs.load_mood_recommendations() if hasattr(
+                self.parent.songs, 'load_mood_recommendations') else None
             self.show_songs_list()
             self.current_title = "Home"
         elif view_type == "history":
@@ -988,7 +969,7 @@ class Button:
             self.parent.open_wrapup()
         self.create_title()
 
-        # 🔥 XỬ LÝ MOOD_PLAYER RIÊNG
+        # XỬ LÝ MOOD_PLAYER RIÊNG
         if view_type == "mood_player":
             self.parent.open_player()  # CHỈ OPEN, KHÔNG HIDE
             self.songs.cleanup()
@@ -1007,7 +988,7 @@ class Button:
     def show_library(self):
         """Hiển thị thư viện"""
         if not session.current_user:
-            print("❌ Lỗi: Chưa có user đăng nhập")
+            print("Lỗi: Chưa có user đăng nhập")
             return
         self.parent.songs.load_playlists_from_db()
         self.parent.songs.update_library_display()
@@ -1017,7 +998,7 @@ class Button:
     def show_history(self):
         """Hiển thị danh sách lịch sử"""
         if not session.current_user:
-            print("❌ Lỗi: Chưa có user đăng nhập")
+            print("Lỗi: Chưa có user đăng nhập")
             return
         self.parent.songs.load_history_from_db()
         self.parent.songs.update_history_display()
@@ -1162,7 +1143,7 @@ class Button:
         c = self.parent.songs.fixed_canvas
         self.love_state = "love(2)" if is_favorite else "love(1)"
         c.itemconfig(self.buttons["love"], image=self.image_cache[self.love_state])
-        print(f"🔄 Button: Đã cập nhật love state {self.love_state}")
+        print(f"Button: Đã cập nhật love state {self.love_state}")
 
     def toggle_love(self, event=None):
         """Chuyển đổi trạng thái của nút love"""
@@ -1299,7 +1280,7 @@ class Song:
         self.start_time = 0
 
         # === PHẦN RECOMMENDATION FOR TODAY===
-        self.ai_components = None
+        self.mood_components = None
         self.recommendation_items = []
 
         self.owned_songs_manager = SongListManager(self.parent, controller, "owned_songs")
@@ -1362,13 +1343,13 @@ class Song:
 
         self.parent.bind("<Configure>", self.check_song_end)
 
-        self.init_ai_recommender()
-        # === END AI RECOMMENDATION ===
+        self.init_mood_recommender()
+        # === END MOOD RECOMMENDATION ===
         self.artist_recommendations_cache = None
         self.artist_items = []
         self.artist_images_cache = {}
-        # Tạo AI recommendations sau khi khởi tạo xong
-        self.parent.after(2000, self.load_ai_recommendations)
+        # Tạo Mood recommendations sau khi khởi tạo xong
+        self.parent.after(2000, self.load_mood_recommendations)
         self.parent.after(500, self.create_artist_recommendations)
 
         # Canvas cho genre tracks
@@ -1426,7 +1407,7 @@ class Song:
             if hasattr(self, 'artist_container') and self.artist_container and self.artist_container.winfo_exists():
                 return
 
-            print("🔄 Đang tạo artist recommendations...")
+            print("Đang tạo artist recommendations...")
 
             # Tạo container chính
             self.artist_container = Frame(self.canvas, bg="#F7F7DC")
@@ -1537,10 +1518,10 @@ class Song:
             # Tải dữ liệu
             self.load_recommended_artists()
 
-            print("✅ Artist recommendations đã được tạo thành công")
+            print("Artist recommendations đã được tạo thành công")
 
         except Exception as e:
-            print(f"❌ Lỗi khi tạo artist recommendations: {e}")
+            print(f"Lỗi khi tạo artist recommendations: {e}")
 
     def load_recommended_artists(self):
         """Tải danh sách nghệ sĩ được gợi ý"""
@@ -1589,7 +1570,7 @@ class Song:
         self.clear_artist_recommendations()
 
         if not recommendations:
-            print("⚠️ Không có recommendations")
+            print("Không có recommendations")
             no_data_label = Label(
                 self.artist_frame,
                 text="No artist recommendations available",
@@ -1627,7 +1608,7 @@ class Song:
         # Cập nhật scrollregion cho canvas chính
         self.update_scroll_region()
 
-        print(f"✅ Artist scroll configured: total_width={total_width}")
+        print(f"Artist scroll configured: total_width={total_width}")
 
     def create_artist_item(self, artist_data, x, y, width, height, index):
         """Tạo một item artist - FIX POSITION"""
@@ -1711,7 +1692,7 @@ class Song:
                 self.load_default_artist_image(img_label, size)
 
         except Exception as e:
-            print(f"⚠️ Lỗi tải ảnh nghệ sĩ {artist_name}: {e}")
+            print(f"Lỗi tải ảnh nghệ sĩ {artist_name}: {e}")
             self.load_default_artist_image(img_label, size)
 
     def load_default_artist_image(self, img_label, size):
@@ -1728,7 +1709,7 @@ class Song:
 
             self.controller.after(0, update_ui)
         except Exception as e:
-            print(f"⚠️ Lỗi tải ảnh mặc định: {e}")
+            print(f"Lỗi tải ảnh mặc định: {e}")
 
     def on_artist_click(self, artist_name):
         """Xử lý khi click vào nghệ sĩ - CẬP NHẬT TITLE"""
@@ -1746,9 +1727,9 @@ class Song:
         if is_enter:
             widget.config(cursor="hand2")
             if isinstance(widget, Frame):
-                # 🎯 ĐỔI MÀU NỀN FRAME
+                # ĐỔI MÀU NỀN FRAME
                 widget.config(bg="#F1EBD0")
-                # 🎯 ĐỔI MÀU NỀN TẤT CẢ WIDGET CON TRONG FRAME
+                # ĐỔI MÀU NỀN TẤT CẢ WIDGET CON TRONG FRAME
                 for child in widget.winfo_children():
                     if hasattr(child, 'config'):
                         try:
@@ -1764,9 +1745,9 @@ class Song:
                     pass
         else:
             if isinstance(widget, Frame):
-                # 🎯 TRỞ LẠI MÀU GỐC CHO FRAME
+                # TRỞ LẠI MÀU GỐC CHO FRAME
                 widget.config(bg="#F7F7DC")
-                # 🎯 TRỞ LẠI MÀU GỐC CHO TẤT CẢ WIDGET CON
+                # TRỞ LẠI MÀU GỐC CHO TẤT CẢ WIDGET CON
                 for child in widget.winfo_children():
                     if hasattr(child, 'config'):
                         try:
@@ -1846,7 +1827,7 @@ class Song:
             track_id = track.get('trackId')
             return db.db["tracks"].find_one({"trackId": int(track_id)}) or track
         except Exception as e:
-            print(f"❌ Error loading song data: {e}")
+            print(f"Error loading song data: {e}")
             return track
 
     def load_track_image_async(self, track, song_data, img_label):
@@ -1870,7 +1851,7 @@ class Song:
                 self.parent.after(0, lambda: self.update_image_label(img_label, img, track))
 
             except Exception as e:
-                print(f"❌ Error loading image: {e}")
+                print(f"Error loading image: {e}")
                 self.parent.after(0, lambda: self.update_image_label(img_label, None, track))
 
         threading.Thread(target=load_image, daemon=True).start()
@@ -1905,7 +1886,7 @@ class Song:
                 ))
 
             except Exception as e:
-                print(f"❌ Error checking purchase: {e}")
+                print(f"Error checking purchase: {e}")
                 self.parent.after(0, lambda: self.bind_payment_events(widgets, song_data))
 
         threading.Thread(target=check_purchase, daemon=True).start()
@@ -1941,7 +1922,7 @@ class Song:
             buy_btn.pack(side="right", padx=(0, 10))
 
         except Exception as e:
-            print(f"❌ Lỗi khi tạo nút mua hàng: {e}")
+            print(f"Lỗi khi tạo nút mua hàng: {e}")
 
     def bind_play_events(self, widgets, track_id):
         """Bind sự kiện phát nhạc"""
@@ -2003,7 +1984,7 @@ class Song:
         try:
             self.genre_tracks_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
         except Exception as e:
-            print(f"⚠️ Lỗi mousewheel trên item: {e}")
+            print(f"Lỗi mousewheel trên item: {e}")
 
     def setup_scroll_region(self, event=None):
         """Cập nhật scroll region - FIX LỖI"""
@@ -2016,7 +1997,7 @@ class Song:
             if bbox:
                 self.genre_tracks_canvas.configure(scrollregion=bbox)
         except Exception as e:
-            print(f"⚠️ Lỗi setup scroll: {e}")
+            print(f"Lỗi setup scroll: {e}")
 
     def setup_mousewheel_binding(self, canvas, frame):
         """Thiết lập mousewheel binding cho cả canvas và frame"""
@@ -2025,7 +2006,7 @@ class Song:
             try:
                 canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
             except Exception as e:
-                print(f"⚠️ Lỗi mousewheel: {e}")
+                print(f"Lỗi mousewheel: {e}")
 
         # Bind cho canvas
         canvas.bind("<MouseWheel>", on_mousewheel)
@@ -2148,17 +2129,17 @@ class Song:
                 ]
 
                 top_songs = list(db.db[history_collection].aggregate(pipeline))
-                print(f"✅ Found {len(top_songs)} songs for mood {mood_name}")
+                print(f"Found {len(top_songs)} songs for mood {mood_name}")
                 self.parent.after(0, lambda: self.show_mood_songs_modal(mood_name, top_songs))
 
             except Exception as e:
-                print(f"❌ Error: {e}")
+                print(f" Error: {e}")
 
         threading.Thread(target=load_songs_data, daemon=True).start()
 
     def show_mood_songs_modal(self, mood_name, tracks):
         """Hiển thị tracks của mood"""
-        print(f"🎵 Hiển thị {len(tracks)} tracks cho mood: {mood_name}")
+        print(f"Hiển thị {len(tracks)} tracks cho mood: {mood_name}")
 
         self.genre_tracks_canvas.yview_moveto(0)
 
@@ -2212,7 +2193,7 @@ class Song:
                 self.genre_recommendations_cache = result
                 self.parent.after(0, lambda: self.display_genre_recommendations(result))
             except Exception as e:
-                print(f"❌ Lỗi khi tải genre recommendations: {e}")
+                print(f"Lỗi khi tải genre recommendations: {e}")
 
         threading.Thread(target=load_recommendations, daemon=True).start()
 
@@ -2221,11 +2202,11 @@ class Song:
         self.clear_genre_recommendations()
 
         if not result or 'error' in result:
-            print("⚠️ No genre recommendations available")
+            print("No genre recommendations available")
             return
 
         top_genres = result.get('top_genres', [])
-        print(f"🎵 Displaying {len(top_genres)} genre recommendations horizontally")
+        print(f"Displaying {len(top_genres)} genre recommendations horizontally")
 
         item_width = 200
         item_height = 200
@@ -2283,17 +2264,17 @@ class Song:
         cached_result = self.genre_recommendations_cache
 
         if cached_result and cached_result.get('user_id') == session.current_user.get("userId"):
-            print("🔍 Using cached result for genre click")
+            print("Using cached result for genre click")
             if 'recommendations' in cached_result:
                 for rec in cached_result['recommendations']:
                     if rec['genre'] == genre_name:
                         tracks = rec['tracks']
-                        print(f"✅ Found {len(tracks)} tracks for {genre_name} from cache - displaying immediately")
+                        print(f"Found {len(tracks)} tracks for {genre_name} from cache - displaying immediately")
                         self.parent.after(0, lambda: self.display_genre_tracks_modal(genre_name, tracks))
                         return
 
         # Fallback: nếu cache không có, vẫn load từ database
-        print(f"🔄 No cache found for {genre_name}, loading from database")
+        print(f"No cache found for {genre_name}, loading from database")
         self.parent.after(0, lambda: self.show_genre_tracks(genre_name))
 
     def show_genre_tracks(self, genre_name):
@@ -2313,12 +2294,12 @@ class Song:
                         for rec in cached_result['recommendations']:
                             if rec['genre'] == genre_name:
                                 tracks = rec['tracks']
-                                print(f"✅ Found {len(tracks)} tracks for {genre_name} from cache")
+                                print(f"Found {len(tracks)} tracks for {genre_name} from cache")
                                 self.parent.after(0, lambda: self.display_genre_tracks_modal(genre_name, tracks))
                                 return
 
                 # Nếu không có cache, mới gọi database
-                print(f"🔄 Loading tracks for {genre_name} from database")
+                print(f"Loading tracks for {genre_name} from database")
                 db = self.controller.get_db()
                 from genre_recommendation import recommend_tracks_for_genre, get_user_purchased_tracks, get_purchased_artists
 
@@ -2330,13 +2311,13 @@ class Song:
                 self.parent.after(0, lambda: self.display_genre_tracks_modal(genre_name, tracks))
 
             except Exception as e:
-                print(f"❌ Lỗi khi tải tracks cho genre {genre_name}: {e}")
+                print(f"Lỗi khi tải tracks cho genre {genre_name}: {e}")
 
         threading.Thread(target=load_tracks, daemon=True).start()
 
     def display_genre_tracks_modal(self, genre_name, tracks):
         """Hiển thị genre tracks modal"""
-        print(f"🎵 Hiển thị {len(tracks)} tracks cho genre: {genre_name}")
+        print(f"Hiển thị {len(tracks)} tracks cho genre: {genre_name}")
         self.genre_tracks_canvas.yview_moveto(0)
 
         self.genre_tracks_canvas.place(x=103, y=90)
@@ -2372,27 +2353,24 @@ class Song:
         self.liked_songs_manager.hide()
         self.playlist_manager.hide()
 
-    def init_ai_recommender(self):
-        """Khởi tạo AI Recommender"""
+    def init_mood_recommender(self):
+        """Khởi tạo Mood Recommender"""
         try:
             if not session.current_user:
                 print(" No user session")
-                self.ai_components = None
+                self.mood_components = None
                 return
 
             user_id = session.current_user.get("userId")
 
-            # 1. Lấy moodID mới nhất từ MongoDB
+            # LẤY MOOD MỚI NHẤT TỪ SESSION
             try:
-                db = self.controller.get_db()
-                latest_mood = db.db["mood_tracking_history"].find_one(
-                    {"userId": user_id}, sort=[("timestamp", -1)]
-                )
-                current_mood_id = latest_mood.get("moodID",
-                                                  1) if latest_mood else 1
-                print(f" Latest moodID for user {user_id}: {current_mood_id}")
+                current_mood_data = session.current_user.get("current_mood", {})
+                current_mood_id = current_mood_data.get("moodID", 1)
+                print(
+                    f"Current moodID from session for user {user_id}: {current_mood_id}")
             except Exception as e:
-                print(f"Error getting mood from MongoDB: {e}")
+                print(f"Error getting mood from session: {e}")
                 current_mood_id = 1
 
             # 2. Load model từ zip file
@@ -2400,7 +2378,7 @@ class Song:
 
             if not os.path.exists(zip_path):
                 print(f" Model zip file not found: {zip_path}")
-                self.ai_components = None
+                self.mood_components = None
                 return
 
             with zipfile.ZipFile(zip_path, 'r') as zip_ref:
@@ -2420,7 +2398,7 @@ class Song:
                         components = joblib.load(model_path)
                     except Exception as e:
                         print(f" Joblib load failed: {e}")
-                        self.ai_components = None
+                        self.mood_components = None
                         return
 
                     # Lấy DB connection
@@ -2450,7 +2428,7 @@ class Song:
                         'recommend_for_new_user': new_recommend_for_new_user
                     }
 
-                    self.ai_components = {
+                    self.mood_components = {
                         'model': components['model'],
                         'feature_cols': components['feature_cols'],
                         'mongodb_data': mongodb_data,
@@ -2460,25 +2438,25 @@ class Song:
                     }
 
                 else:
-                    print("❌ No .joblib file found in zip")
-                    self.ai_components = None
+                    print("No .joblib file found in zip")
+                    self.mood_components = None
                     return
 
         except Exception as e:
-            print(f"❌ Failed to init AI: {e}")
+            print(f"Failed to init Mood: {e}")
             import traceback
             traceback.print_exc()
-            self.ai_components = None
+            self.mood_components = None
 
-    def get_ai_recommendations(self, user_id, num_recommendations=10):
+    def get_mood_recommendations(self, user_id, num_recommendations=10):
         """Lấy recommendations - Phân biệt rõ user mới/cũ"""
-        if not self.ai_components:
+        if not self.mood_components:
             return self.get_fallback_recommendations(num_recommendations)
 
         try:
             user_id_str = str(user_id)
-            functions = self.ai_components['recommendation_functions']
-            current_mood_id = self.ai_components['current_mood'].iloc[0][
+            functions = self.mood_components['recommendation_functions']
+            current_mood_id = self.mood_components['current_mood'].iloc[0][
                 'moodID']
 
             # Kiểm tra user type
@@ -2517,7 +2495,7 @@ class Song:
                 return recommendations
 
         except Exception as e:
-            print(f"❌ Joblib model error: {e}")
+            print(f"Joblib model error: {e}")
             import traceback
             traceback.print_exc()
 
@@ -2525,7 +2503,7 @@ class Song:
 
     def get_fallback_recommendations(self, num_recommendations):
         """Fallback khi model không hoạt động"""
-        tracks = self.ai_components.get('tracks', pd.DataFrame())
+        tracks = self.mood_components.get('tracks', pd.DataFrame())
         if tracks.empty:
             return []
 
@@ -2539,9 +2517,9 @@ class Song:
             'user_type': 'FALLBACK'
         } for _, row in top_tracks.iterrows()]
 
-    def load_ai_recommendations(self):
-        """Tải AI recommendations cho user"""
-        if not session.current_user or not self.ai_components:
+    def load_mood_recommendations(self):
+        """Tải Mood recommendations cho user"""
+        if not session.current_user or not self.mood_components:
             return
 
         user_id = session.current_user.get("userId")
@@ -2549,19 +2527,19 @@ class Song:
             return
 
         def load_recommendations():
-            recommendations = self.get_ai_recommendations(user_id)
-            self.parent.after(0, lambda: self.display_ai_recommendations(
+            recommendations = self.get_mood_recommendations(user_id)
+            self.parent.after(0, lambda: self.display_mood_recommendations(
                 recommendations))
 
         threading.Thread(target=load_recommendations, daemon=True).start()
 
-    def display_ai_recommendations(self, recommendations):
-        """Hiển thị AI recommendations theo hàng ngang"""
+    def display_mood_recommendations(self, recommendations):
+        """Hiển thị Mood recommendations theo hàng ngang"""
         # Xóa recommendations cũ
-        self.clear_ai_recommendations()
+        self.clear_mood_recommendations()
 
         if not recommendations:
-            print("⚠️ No AI recommendations available")
+            print("No Mood recommendations available")
             return
 
         # Kích thước mỗi item
@@ -2581,27 +2559,28 @@ class Song:
             scrollregion=self.recommendation_canvas.bbox("all"))
         self.recommendation_canvas.configure(xscrollcommand=lambda *args: None)
 
-        self.recommendation_canvas.bind("<Enter>", self.on_ai_recommendation_enter)
-        self.recommendation_canvas.bind("<Leave>", self.on_ai_recommendation_leave)
-        self.recommendation_frame.bind("<Enter>", self.on_ai_recommendation_enter)
-        self.recommendation_frame.bind("<Leave>", self.on_ai_recommendation_leave)
+        self.recommendation_canvas.bind("<Enter>", self.on_mood_recommendation_enter)
+        self.recommendation_canvas.bind("<Leave>", self.on_mood_recommendation_leave)
+        self.recommendation_frame.bind("<Enter>", self.on_mood_recommendation_enter)
+        self.recommendation_frame.bind("<Leave>", self.on_mood_recommendation_leave)
 
-    def on_ai_recommendation_mousewheel(self, event):
-        """Xử lý cuộn bằng chuột cho AI recommendations"""
+    def on_mood_recommendation_mousewheel(self, event):
+        """Xử lý cuộn bằng chuột cho Mood recommendations"""
         self.recommendation_canvas.xview_scroll(-1 * (event.delta // 120),
                                                 "units")
 
-    def on_ai_recommendation_enter(self, event):
-        """Khi chuột vào AI recommendation area - bind mouse wheel để scroll ngang"""
+    def on_mood_recommendation_enter(self, event):
+        """Khi chuột vào Mood recommendation area - bind mouse wheel để
+        scroll ngang"""
         self.recommendation_canvas.bind_all("<MouseWheel>",
-                                            self.on_ai_recommendation_mousewheel)
+                                            self.on_mood_recommendation_mousewheel)
 
-    def on_ai_recommendation_leave(self, event):
-        """Khi chuột rời AI recommendation area - unbind để trả lại scroll dọc"""
+    def on_mood_recommendation_leave(self, event):
+        """Khi chuột rời Mood recommendation area - unbind để trả lại scroll dọc"""
         self.recommendation_canvas.unbind_all("<MouseWheel>")
 
-    def clear_ai_recommendations(self):
-        """Xóa tất cả AI recommendations hiện tại"""
+    def clear_mood_recommendations(self):
+        """Xóa tất cả Mood recommendations hiện tại"""
         for item in self.recommendation_items:
             if 'frame' in item and item['frame'].winfo_exists():
                 item['frame'].destroy()
@@ -2628,7 +2607,7 @@ class Song:
         def load_album_art(track_id, img_label):
             """Tải ảnh album - Fix lỗi numpy.int64"""
             db = self.controller.get_db()
-            # 🎯 QUAN TRỌNG: Convert trackId sang int trước khi query
+            # QUAN TRỌNG: Convert trackId sang int trước khi query
             track_id_int = int(track_id)
             song = db.db["tracks"].find_one({"trackId": track_id_int})
 
@@ -2766,7 +2745,7 @@ class Song:
         """Tải danh sách lịch sử nghe nhạc từ MongoDB dựa trên session.current_user"""
         db = self.controller.get_db()
         if not session.current_user:
-            print("❌ Lỗi: Chưa có user đăng nhập")
+            print("Lỗi: Chưa có user đăng nhập")
             return
         user_id = session.current_user.get("userId")
         try:
@@ -2788,24 +2767,24 @@ class Song:
 
             self.update_history_display()
             print(
-                f"✅ Đã tải {len(self.history_list)} bài hát trong lịch sử (userId={user_id}).")
+                f"Đã tải {len(self.history_list)} bài hát trong lịch sử (userId={user_id}).")
 
         except Exception as e:
-            print(f"❌ Lỗi khi tải lịch sử từ MongoDB: {e}")
+            print(f"Lỗi khi tải lịch sử từ MongoDB: {e}")
 
     def save_to_history(self, song: dict):
         db = self.controller.get_db()
         user_id = session.current_user.get("userId")
 
         try:
-            # ✅ Chuẩn bị dữ liệu
+            # Chuẩn bị dữ liệu
             track_id = song.get("trackId")
             track_name = song.get("trackName")
             artist_name = song.get("artistName")
             artwork = song.get("artworkUrl100", "assets/default.png")
             played_time = self.current_utc_iso()  # dùng hàm nội bộ
 
-            # ---------- 1️⃣ Ghi vào user_history ----------
+            # ---------- Ghi vào user_history ----------
             existing_entry = db.db["user_history"].find_one({
                 "userId": str(user_id),
                 "trackId": int(track_id)
@@ -2830,7 +2809,7 @@ class Song:
                     "LastPlayedAt": played_time
                 })
 
-            # ---------- 2️⃣ Ghi vào bảng lịch sử tháng ----------
+            # ---------- Ghi vào bảng lịch sử tháng ----------
             month_collection = self.get_month_collection_name()
             purchase_doc = db.db["purchase"].find_one(
                 {"trackId": int(track_id)})
@@ -2847,10 +2826,10 @@ class Song:
                 "source": "future"
             })
 
-            print(f"💾 Đã lưu lịch sử nghe: {track_name} ({month_collection})")
+            print(f"Đã lưu lịch sử nghe: {track_name} ({month_collection})")
 
         except Exception as e:
-            print(f"❌ Lỗi khi lưu lịch sử nghe: {e}")
+            print(f"Lỗi khi lưu lịch sử nghe: {e}")
 
     def update_history_display(self):
         """Cập nhật hiển thị lịch sử"""
@@ -2887,7 +2866,7 @@ class Song:
                     self.image_cache[url] = img
 
             def update_label():
-                if img_label.winfo_exists():  # ✅ Kiểm tra tồn tại
+                if img_label.winfo_exists():  # Kiểm tra tồn tại
                     img_label.config(image=img)
                     img_label.image = img  # giữ reference
 
@@ -2981,7 +2960,7 @@ class Song:
             return True
 
         except Exception as e:
-            print(f"❌ Lỗi thêm favorites: {e}")
+            print(f"Lỗi thêm favorites: {e}")
             return False
 
     def remove_from_favorite(self, song=None):
@@ -3003,7 +2982,7 @@ class Song:
             return False
 
         except Exception as e:
-            print(f"❌ Lỗi xóa favorites: {e}")
+            print(f"Lỗi xóa favorites: {e}")
             return False
 
     def update_love_button_state(self, is_favorite=None):
@@ -3033,16 +3012,16 @@ class Song:
     def register_love_callback(self, callback):
         """Đăng ký callback khi trạng thái love thay đổi"""
         self.love_callbacks.append(callback)
-        print(f"✅ Song: Đã đăng ký love callback: {len(self.love_callbacks)}")
+        print(f"Song: Đã đăng ký love callback: {len(self.love_callbacks)}")
 
     def notify_love_changed(self, song, is_favorite):
         """Thông báo trạng thái love thay đổi"""
-        print(f"🔔 Song Notify love changed: {song.get('trackName')} -> {is_favorite}")
+        print(f"Song Notify love changed: {song.get('trackName')} -> {is_favorite}")
         for callback in self.love_callbacks[:]:
             try:
                 callback(song, is_favorite)
             except Exception as e:
-                print(f"❌ Love callback error: {e}")
+                print(f"Love callback error: {e}")
 
     def show_playlist(self, playlist_name):
         """Hiển thị playlist"""
@@ -3054,7 +3033,7 @@ class Song:
             self.parent.buttons._last_playlist_name = playlist_name
 
         if not self.playlist_manager:
-            print("❌ playlist_manager not found in Song class")
+            print("playlist_manager not found in Song class")
             return
 
         self.playlist_manager.load_from_db("playlist", playlist_name=playlist_name)
@@ -3193,12 +3172,12 @@ class Song:
             self.update_library_display()
 
         except Exception as e:
-            print(f"❌ Lỗi khi tạo playlist: {e}")
+            print(f"Lỗi khi tạo playlist: {e}")
 
     def load_playlists_from_db(self):
         db = self.controller.get_db()
         if not session.current_user:
-            print("❌ Lỗi: Chưa có user đăng nhập")
+            print("Lỗi: Chưa có user đăng nhập")
             return
 
         username = session.current_user.get("username")
@@ -3206,19 +3185,19 @@ class Song:
             user_doc = db.db["user"].find_one({"username": username})
             if user_doc and "playlists" in user_doc:
                 self.playlists = user_doc["playlists"]
-                print(f"✅ Đã tải {len(self.playlists)} playlists từ database: {[p['name'] for p in self.playlists]}")
+                print(f"Đã tải {len(self.playlists)} playlists từ database: {[p['name'] for p in self.playlists]}")
             else:
                 self.playlists = []
-                print("ℹ️ User không có playlists nào")
+                print("User không có playlists nào")
 
         except Exception as e:
-            print(f"❌ Lỗi khi tải playlists từ MongoDB: {e}")
+            print(f"Lỗi khi tải playlists từ MongoDB: {e}")
             self.playlists = []
 
     def save_playlist_to_db(self, playlist_name: str) -> bool:
         try:
             if not session.current_user:
-                print("❌ Lỗi: Chưa có user đăng nhập")
+                print("Lỗi: Chưa có user đăng nhập")
                 return False
 
             username = session.current_user.get("username")
@@ -3234,10 +3213,10 @@ class Song:
                 {"$push": {"playlists": playlist_data}}
             )
 
-            print(f"✅ Đã lưu playlist '{playlist_name}' cho user '{username}'")
+            print(f"Đã lưu playlist '{playlist_name}' cho user '{username}'")
             return True
         except Exception as e:
-            print(f"❌ Lỗi khi lưu playlist: {e}")
+            print(f"Lỗi khi lưu playlist: {e}")
             return False
 
     def sync_play_state(self):
@@ -3254,69 +3233,69 @@ class Song:
     def register_song_change_callback(self, callback):
         """Đăng ký callback khi bài hát thay đổi"""
         self.song_change_callbacks.append(callback)
-        print(f"✅ Song: Đã đăng ký song change callback: {len(self.song_change_callbacks)}")
+        print(f"Song: Đã đăng ký song change callback: {len(self.song_change_callbacks)}")
 
     def notify_song_changed(self, song, source="main"):
         """Thông báo bài hát thay đổi đến tất cả listeners - XỬ LÝ CALLBACK AN TOÀN"""
-        print(f"🔔 Song Notify song changed from {source}: {song.get('trackName', 'Unknown')}")
-        print(f"   📢 Số lượng callbacks: {len(self.song_change_callbacks)}")
+        print(f"Song Notify song changed from {source}: {song.get('trackName', 'Unknown')}")
+        print(f"Số lượng callbacks: {len(self.song_change_callbacks)}")
 
         self.current_song = song
 
-        # 🔥 XỬ LÝ CALLBACK AN TOÀN (TRÁNH LỖI TclError)
+        # XỬ LÝ CALLBACK AN TOÀN (TRÁNH LỖI TclError)
         valid_callbacks = []
 
         for i, callback in enumerate(self.song_change_callbacks):
             try:
-                print(f"   🔄 Đang gọi callback #{i}...")
+                print(f"   Đang gọi callback #{i}...")
                 callback(song)
                 valid_callbacks.append(callback)  # Giữ lại callback hoạt động
-                print(f"   ✅ Callback #{i} thành công")
+                print(f"   Callback #{i} thành công")
             except Exception as e:
-                print(f"❌ Callback #{i} error: {e} - Đã bị remove")
+                print(f"Callback #{i} error: {e} - Đã bị remove")
                 # Không thêm vào valid_callbacks = tự động remove
 
-        # 🔥 CẬP NHẬT LẠI CALLBACK LIST (LOẠI BỎ CALLBACK LỖI)
+        # CẬP NHẬT LẠI CALLBACK LIST (LOẠI BỎ CALLBACK LỖI)
         self.song_change_callbacks = valid_callbacks
-        print(f"   🔄 Số lượng callbacks sau cleanup: {len(self.song_change_callbacks)}")
+        print(f"  Số lượng callbacks sau cleanup: {len(self.song_change_callbacks)}")
 
     def set_repeat_mode(self, mode, source="main"):
         """Thay đổi chế độ repeat và thông báo"""
         self.repeat_mode = mode
-        print(f"🔄 Song: Repeat mode changed to {mode} from {source}")
+        print(f"Song: Repeat mode changed to {mode} from {source}")
         self.notify_repeat_changed(mode)
 
     def register_repeat_callback(self, callback):
         """Đăng ký callback khi repeat mode thay đổi"""
         self.repeat_callbacks.append(callback)
-        print(f"✅ Song: Đã đăng ký repeat callback: {len(self.repeat_callbacks)}")
+        print(f"Song: Đã đăng ký repeat callback: {len(self.repeat_callbacks)}")
 
     def notify_repeat_changed(self, mode):
         """Thông báo repeat mode thay đổi đến Player - XỬ LÝ AN TOÀN"""
-        print(f"🔔 SongsManager Notify repeat changed: {mode}")
-        print(f"   📢 Số lượng repeat callbacks: {len(self.repeat_callbacks)}")
+        print(f"SongsManager Notify repeat changed: {mode}")
+        print(f"   Số lượng repeat callbacks: {len(self.repeat_callbacks)}")
 
         # 🔥 XỬ LÝ CALLBACK AN TOÀN GIỐNG NHƯ SONG CHANGE
         valid_callbacks = []
 
         for i, callback in enumerate(self.repeat_callbacks):
             try:
-                print(f"   🔄 Đang gọi repeat callback #{i}...")
+                print(f"   Đang gọi repeat callback #{i}...")
                 callback(mode)
                 valid_callbacks.append(callback)  # Giữ lại callback hoạt động
-                print(f"   ✅ Repeat callback #{i} thành công")
+                print(f"   Repeat callback #{i} thành công")
             except Exception as e:
-                print(f"❌ Repeat callback #{i} error: {e} - Đã bị remove")
+                print(f"Repeat callback #{i} error: {e} - Đã bị remove")
 
         # 🔥 CẬP NHẬT LẠI CALLBACK LIST
         self.repeat_callbacks = valid_callbacks
-        print(f"   🔄 Số lượng repeat callbacks sau cleanup: {len(self.repeat_callbacks)}")
+        print(f"   Số lượng repeat callbacks sau cleanup: {len(self.repeat_callbacks)}")
 
     def on_song_click(self, track_id):
         user_id = session.current_user.get("userId")
         db = self.controller.get_db()
         try:
-            print(f"🔍 Kiểm tra purchase: userId={user_id}, trackId={track_id}")
+            print(f"Kiểm tra purchase: userId={user_id}, trackId={track_id}")
 
             # KIỂM TRA USER ĐÃ MUA BÀI HÁT NÀY CHƯA
             purchase_exists = db.db["purchase"].find_one({
@@ -3325,15 +3304,15 @@ class Song:
             })
 
             if not purchase_exists:
-                print(f"❌ User {user_id} chưa mua bài hát trackId={track_id}")
+                print(f"User {user_id} chưa mua bài hát trackId={track_id}")
                 return
 
-            print(f"✅ User {user_id} đã mua bài hát trackId={track_id}")
+            print(f"User {user_id} đã mua bài hát trackId={track_id}")
             # Tìm bài hát theo trackId trong collection 'tracks'
             song = db.db["tracks"].find_one({"trackId": int(track_id)})
 
             if not song:
-                print(f"⚠️ Không tìm thấy trackId={track_id} trong MongoDB.tracks")
+                print(f"Không tìm thấy trackId={track_id} trong MongoDB.tracks")
                 return
 
             # ---------------- Hiển thị lên fixed_canvas ----------------
@@ -3344,13 +3323,13 @@ class Song:
             try:
                 image_bytes = urlopen(image_url).read()
                 pil_image = Image.open(BytesIO(image_bytes)).convert(
-                    "RGBA")  # ✅ ép về RGBA để resize chắc chắn
+                    "RGBA")  # ép về RGBA để resize chắc chắn
                 resized_image = pil_image.resize((68, 68), Resampling.LANCZOS)
 
                 img = ImageTk.PhotoImage(resized_image)
                 self.current_song_image = img
             except Exception as e:
-                print(f"⚠️ Lỗi tải ảnh cho trackId={track_id}: {e}")
+                print(f"Lỗi tải ảnh cho trackId={track_id}: {e}")
                 self.current_song_image = PhotoImage(file="../images/White_bg.png")
 
             # Hiển thị ảnh + tên bài hát + nghệ sĩ
@@ -3400,7 +3379,7 @@ class Song:
             self.play_song(song)
 
         except Exception as e:
-            print(f"❌ Lỗi khi truy vấn bài hát từ MongoDB: {e}")
+            print(f"Lỗi khi truy vấn bài hát từ MongoDB: {e}")
 
     def _get_active_manager(self):
         managers = [ self.owned_songs_manager,
@@ -3497,7 +3476,7 @@ class Song:
             self.current_time = new_time
             self.start_time = time.time() - new_time
         except Exception as e:
-            print("⚠️ Seek error:", e)
+            print("Seek error:", e)
             return
 
         # --- Cập nhật UI ngay lập tức ---
@@ -3541,13 +3520,13 @@ class Song:
         try:
             song_url = song.get("previewUrl") or song.get("filePath")
             if not song_url:
-                print("⚠️ Không có URL hoặc filePath hợp lệ để phát.")
+                print("Không có URL hoặc filePath hợp lệ để phát.")
                 return
 
             media = self.instance.media_new(song_url)
             self.player.set_media(media)
             self.player.play()
-            # 🔥 UPDATE STATE - QUAN TRỌNG: nhận bài hát mới từ Player
+            # UPDATE STATE - QUAN TRỌNG: nhận bài hát mới từ Player
             self.current_song = song
             self.is_playing = True
             self.is_paused = False
@@ -3558,7 +3537,7 @@ class Song:
             try:
                 self.parent.buttons.update_progress_bar()
             except Exception as e:
-                print(f"⚠️ Lỗi cập nhật thanh tiến trình: {e}")
+                print(f"Lỗi cập nhật thanh tiến trình: {e}")
 
             # Đổi icon ở main button
             try:
@@ -3576,7 +3555,7 @@ class Song:
             self.update_love_button_state()
 
         except Exception as e:
-            print(f"❌ Lỗi khi phát nhạc: {e}")
+            print(f"Lỗi khi phát nhạc: {e}")
 
     def play_pause(self):
         """Toggle giữa Play ↔ Pause: đổi nút và điều khiển nhạc"""
@@ -3635,15 +3614,26 @@ class Song:
 
                 next_song = db.db["tracks"].find_one(
                     {"trackId": next_track_id})
-
                 if next_song:
                     print(f"🎵 Phát bài tiếp theo: {next_song['trackName']}")
                     self.repeat_once_flag = False
                     self.notify_song_changed(next_song, "next_song")
+                    try:
+                        db = self.controller.get_db()
+                        user_id = int(session.current_user.get("userId"))
+                        track_id = next_song.get("trackId")
+                        existing = db.db["user_favorite"].find_one({
+                            "userId": user_id,
+                            "trackId": track_id
+                        })
+                        is_favorite = existing is not None
+                        self.notify_love_changed(next_song, is_favorite)
+                    except Exception as e:
+                        print(f"Lỗi auto-sync love: {e}")
                     self.on_song_click(next_song["trackId"])
                 return
 
-        print("⚠️ Bài hiện tại không có trong danh sách purchase.")
+        print("Bài hiện tại không có trong danh sách purchase.")
 
     def previous_song(self, event=None):
         """Quay lại bài trước"""
@@ -3656,7 +3646,7 @@ class Song:
             db.db["purchase"].find({"userId": user_id}).sort("purchased_at",
                                                              1))
         if not purchases:
-            print("⚠️ Người dùng chưa mua bài hát nào.")
+            print("Người dùng chưa mua bài hát nào.")
             return
         # Tìm vị trí bài hiện tại trong danh sách
         for i, purchase in enumerate(purchases):
@@ -3672,18 +3662,18 @@ class Song:
                     self.on_song_click(prev_song["trackId"])
                 return
 
-        print("⚠️ Bài hiện tại không có trong danh sách purchase.")
+        print("Bài hiện tại không có trong danh sách purchase.")
 
     def check_song_end(self, event=None):
         """Kiểm tra khi bài hát kết thúc - FIXED"""
         try:
-            # 🔥 TRUY CẬP SONGS_MANAGER TỪ CHÍNH SONG (vì songs_manager chính là self)
-            songs_manager = self  # 🔥 VÌ songs_manager THỰC CHẤT LÀ INSTANCE CỦA Song
-            # print("✅ Song: Đang dùng chính self làm songs_manager")
+            # TRUY CẬP SONGS_MANAGER TỪ CHÍNH SONG (vì songs_manager chính là self)
+            songs_manager = self  # VÌ songs_manager THỰC CHẤT LÀ INSTANCE CỦA Song
+            # print("Song: Đang dùng chính self làm songs_manager")
 
-            # 🔥 KIỂM TRA TỒN TẠI TRƯỚC KHI TRUY CẬP
+            # KIỂM TRA TỒN TẠI TRƯỚC KHI TRUY CẬP
             if not hasattr(self, 'player') or self.player is None:
-                self.parent.after(1000, self.check_song_end)  # 🔥 DÙNG PARENT'S AFTER
+                self.parent.after(1000, self.check_song_end)  # DÙNG PARENT'S AFTER
                 return
 
             if not self.current_song:
@@ -3694,7 +3684,7 @@ class Song:
                 self.parent.after(500, self.check_song_end)
                 return
 
-            # 🔥 THÊM TRY/EXCEPT CHO get_state()
+            # THÊM TRY/EXCEPT CHO get_state()
             try:
                 player_state = self.player.get_state()
             except Exception as e:
@@ -3706,8 +3696,8 @@ class Song:
             if player_state == vlc.State.Ended:
                 print("🎵 Bài hát đã kết thúc, chuyển bài tiếp theo...")
 
-                # 🔥 DÙNG REPEAT_MODE TỪ CHÍNH SONG
-                repeat_mode = self.repeat_mode  # 🔥 TRUY CẬP TRỰC TIẾP TỪ SONG
+                # DÙNG REPEAT_MODE TỪ CHÍNH SONG
+                repeat_mode = self.repeat_mode  # TRUY CẬP TRỰC TIẾP TỪ SONG
 
                 if repeat_mode == 1:  # Repeat One
                     if not getattr(self, "repeat_once_flag", False):
@@ -3810,11 +3800,11 @@ class SongListManager:
                         "artworkUrl100": doc.get("artworkUrl100",
                                                  "assets/default.png")
                     })
-                print(f"✅ Đã tải {len(self.song_list)} bài hát từ {collection_name}")
+                print(f"Đã tải {len(self.song_list)} bài hát từ {collection_name}")
             self.update_display(is_playlist=(collection_name == "playlist"))
             self.show()
         except Exception as e:
-            print(f"❌ Lỗi khi tải từ {collection_name}: {e}")
+            print(f"Lỗi khi tải từ {collection_name}: {e}")
 
     def _load_playlist(self, db, playlist_name):
         username = session.current_user.get("username")
@@ -3930,7 +3920,7 @@ class SongListManager:
                 playlist_name = getattr(self.parent.buttons, '_last_playlist_name', None)
 
             if not playlist_name:
-                print("❌ Không tìm thấy tên playlist đích")
+                print("Không tìm thấy tên playlist đích")
                 messagebox.showerror("Error", "Cannot determine target playlist!")
                 return
 
@@ -3972,7 +3962,7 @@ class SongListManager:
                 messagebox.showerror("Error", "Failed to add song to playlist!")
         except Exception as e:
             messagebox.showerror("Error", f"Error adding song: {str(e)}")
-            print(f"❌ Lỗi chi tiết: {e}")
+            print(f"Lỗi chi tiết: {e}")
 
     def _return_to_playlist(self, playlist_name):
         """Quay lại hiển thị playlist sau khi thêm bài hát"""
@@ -4097,7 +4087,7 @@ class SongListManager:
             else:
                 self.play_button_label.config(image=self.play_icon)
         except Exception as e:
-            print(f"⚠️ Lỗi cập nhật nút play: {e}")
+            print(f"Lỗi cập nhật nút play: {e}")
 
     def shuffle_playlist(self):
         """Xáo trộn playlist"""

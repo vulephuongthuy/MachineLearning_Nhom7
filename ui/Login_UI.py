@@ -22,7 +22,7 @@ from bson import ObjectId
 from customtkinter import CTkEntry, CTkButton, CTkCheckBox, CTkRadioButton
 
 import session
-# from Connection.connector import db
+from Connection.connector import db
 
 
 class LoginFrame(Frame):
@@ -321,57 +321,79 @@ class SignUpFrame(Frame):
         except Exception as e:
             messagebox.showerror("Error", f"Registration failed: {e}")
 
-    def send_welcome_email(self, user_email):
-        email_address = "thutna23416@st.uel.edu.vn"
-        app_password = "wyas ubap nhqv wwap"
-
-
-        msg = MIMEMultipart('related')
-
-        msg["From"] = email_address
+    def send_welcome_email(self, user_email: str):
+        """Gửi email chào mừng khi người dùng đăng ký thành công."""
+        SENDER_EMAIL = "thutna23416@st.uel.edu.vn"
+        APP_PASSWORD = "wyas ubap nhqv wwap"
+        # Validate email
+        if "@" not in user_email:
+            print(f"Email không hợp lệ: {user_email}")
+            return
+        # Tạo email multipart
+        msg = MIMEMultipart("related")
+        msg["From"] = SENDER_EMAIL
         msg["To"] = user_email
-        msg["Subject"] = "Welcome to Moo_d!"
-
-        # Gán một ID cố định cho ảnh
-        image_cid = 'welcome_image'
-
-        body = f"""
+        msg["Subject"] = "🎧 Welcome to Moo_d Music!"
+        image_cid = "welcome_image"
+        # HTML Template đẹp + gọn + responsive
+        html_body = f"""
         <html>
-        <head></head>
-        <body>
-            <p>Hi there,</p
-            <p>Thank you for signing up for Moo_d Music – your new favorite place to vibe, discover, and enjoy music that matches your mood.</p>
-            <p>We're thrilled to have you on board!</p>
+        <body style="font-family: Arial, sans-serif; color: #333; padding: 0 10px;">
+            <h2 style="color:#F2829E;">Welcome to Moo_d Music! 🎶</h2>
 
-            <p><img src="cid:{image_cid}" alt="Welcome to Moo_d" style="width:100%; max-width:400px;"></p>
+            <p>Hi there,</p>
+            <p>Thank you for signing up for <b>Moo_d Music</b> – 
+            your new favorite place to vibe, discover, and enjoy music that matches your mood.</p>
 
-            <p>Stay tuned for curated playlists, personalized mood tracks, and fresh beats tailored just for you.</p>
-            <p>Let's set the Moo_d together.</p>
             <p>
-                Cheers,<br>  
-                The Moo_d Team
+                We're thrilled to have you on board!  
+                Here’s a warm welcome from our team:
+            </p>
+
+            <div style="text-align:center; margin: 25px 0;">
+                <img src="cid:{image_cid}" 
+                     alt="Welcome to Moo_d" 
+                     style="width:100%; max-width:420px; border-radius:12px;">
+            </div>
+
+            <p>
+                Stay tuned for curated playlists, mood-based recommendations <br>
+                and fresh beats tailored just for you.
+            </p>
+
+            <p>Let's set the Moo_d together! 🌙✨</p>
+
+            <p style="margin-top: 35px;">
+                Cheers,<br>
+                <b>The Moo_d Team</b>
             </p>
         </body>
         </html>
         """
-        msg.attach(MIMEText(body, "html"))
-        image_filename = os.path.join('images', 'welcome.png')
-        try:
-            with open(image_filename, 'rb') as fp:
-                img_data = fp.read()
-            img = MIMEImage(img_data, name=os.path.basename(image_filename))
-            img.add_header('Content-ID', f'<{image_cid}>')
-            msg.attach(img)
-        except FileNotFoundError:
-            print(f"Lỗi: Không tìm thấy tệp ảnh tại '{image_filename}'. Email sẽ được gửi không có ảnh.")
-        except Exception as e:
-            print(f"Lỗi khi đính kèm ảnh: {e}")
+
+        msg.attach(MIMEText(html_body, "html", "utf-8"))
+
+        image_path = Path("images/welcome.png")
+        if image_path.exists():
+            try:
+                with open(image_path, "rb") as f:
+                    img_data = f.read()
+                img = MIMEImage(img_data, name=image_path.name)
+                img.add_header("Content-ID", f"<{image_cid}>")
+                msg.attach(img)
+            except Exception as e:
+                print(f" Lỗi khi đính ảnh: {e}")
+        else:
+            print(f" Không tìm thấy ảnh tại: {image_path}")
+
+        # Gửi email qua SMTP
         try:
             with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-                server.login(email_address, app_password)
-                server.sendmail(email_address, user_email, msg.as_string())
+                server.login(SENDER_EMAIL, APP_PASSWORD)
+                server.sendmail(SENDER_EMAIL, user_email, msg.as_string())
+            print(f"Email chào mừng đã gửi thành công đến {user_email}")
         except Exception as e:
-            print(f"Lỗi khi gửi email đến {user_email}: {e}")
+            print(f" Lỗi khi gửi email: {e}")
 
     def go_back(self):
         """Quay lại màn hình đăng nhập"""
@@ -380,6 +402,12 @@ class SignUpFrame(Frame):
 
 
 class MoodTracker(Frame):
+    MOOD_MAP = {
+        "Happy": 1,
+        "Sad": 2,
+        "Neutral": 3,
+        "Intense": 4
+    }
     def __init__(self, parent, controller):
         super().__init__(parent)
         self.controller = controller
@@ -389,6 +417,7 @@ class MoodTracker(Frame):
 
         self.load_background()
         self.create_widgets()
+
 
     def load_background(self):
         """Load nền và overlay pastel."""
@@ -479,11 +508,81 @@ class MoodTracker(Frame):
         self.canvas.itemconfig(mood, image=self.image_cache[f"{mood}_click"])
 
     def on_release(self, mood):
+        from datetime import datetime
+
         self.canvas.itemconfig(mood, image=self.image_cache[f"{mood}_hover"])
         print(f"{mood} pressed!")
+
+        user_id = session.current_user.get("userId")
+        now = datetime.now()
+        month_key = now.strftime("%Y-%m")
+        mood_id = self.MOOD_MAP[mood]
+
+        # ===== Auto historyID không cần counter =====
+        last = db.db.mood_tracking_history.find_one(sort=[("historyID", -1)])
+        history_id = last["historyID"] + 1 if last else 1
+
+        # ===== Lưu lịch sử =====
+        db.db.mood_tracking_history.insert_one({
+            "historyID": history_id,
+            "userId": user_id,
+            "moodID": mood_id,
+            "moodName": mood,
+            "timestamp": now.isoformat() + "Z"
+        })
+
+        #  Lấy summary tháng hiện tại
+        summary = db.db.mood_monthly_summary.find_one(
+            {"userId": user_id, "month": month_key}
+        )
+        #  Nếu chưa có → tạo mới đầy đủ cấu trúc
+        if not summary:
+            summary = {
+                "userId": user_id,
+                "month": month_key,
+                "total_entries": 0,
+                "mood_count": {m: 0 for m in self.MOOD_MAP.keys()},
+                "mood_breakdown": {},
+                "dominant_mood": None
+            }
+
+        #ĐẢM BẢO mood_count luôn có đủ keys (fix cho data cũ)
+        for m in self.MOOD_MAP.keys():
+            if m not in summary["mood_count"]:
+                summary["mood_count"][m] = 0
+
+        # Cập nhật dữ liệu tháng
+        summary["total_entries"] += 1
+        summary["mood_count"][mood] += 1
+
+        total = summary["total_entries"]
+        summary["mood_breakdown"] = {
+            m: round(summary["mood_count"][m] / total, 2)
+            for m in self.MOOD_MAP.keys()
+        }
+
+        summary["dominant_mood"] = max(
+            summary["mood_breakdown"], key=summary["mood_breakdown"].get
+        )
+
+        # ===== Lưu lại vào DB =====
+        db.db.mood_monthly_summary.update_one(
+            {"userId": user_id, "month": month_key},
+            {"$set": summary},
+            upsert=True
+        )
+
+        # ===== Lưu vào session (để HomeScreen lấy mood hiện tại) =====
+        session.current_user["current_mood"] = {
+            "moodID": mood_id,
+            "moodName": mood,
+            "timestamp": now
+        }
+
         self.controller.show_frame("HomeScreen")
         self.controller.show_frame("LoadingPage")
         self.controller.destroy_frame("MoodTracker")
+
 
 class LoadingPage(Frame):
     def __init__(self, parent, controller):

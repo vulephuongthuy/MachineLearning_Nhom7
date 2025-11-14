@@ -583,8 +583,38 @@ class MoodTracker(Frame):
         self.controller.show_frame("LoadingPage")
         self.controller.destroy_frame("MoodTracker")
 
-
 class LoadingPage(Frame):
+    MOOD_QUOTES = {
+        "Happy": [
+            "Your laughter echoed through every moment.",
+            "You danced through the days like sunlight on water.",
+            "Smiles followed you like petals in spring.",
+            "You turned ordinary hours into golden memories.",
+            "Joy wasn't just felt — it was shared."
+        ],
+        "Sad": [
+            "You carried the weight, but never lost your grace.",
+            "Even in silence, your strength spoke volumes.",
+            "The shadows didn't break you — they shaped you.",
+            "You gave yourself permission to feel — and that's brave.",
+            "Sadness softened your edges, but never dimmed your light."
+        ],
+        "Neutral": [
+            "You held steady while the world spun fast.",
+            "Calm was your quiet superpower.",
+            "You moved with intention, not impulse.",
+            "Still waters ran deep in your story.",
+            "You didn't chase highs — you embraced clarity."
+        ],
+        "Intense": [
+            "You roared through the chaos with purpose.",
+            "Every step you took left sparks behind.",
+            "You didn't just show up — you made impact.",
+            "Your energy rewrote the rhythm of the room.",
+            "You burned through limits like they were paper walls."
+        ]
+    }
+
     def __init__(self, parent, controller):
         super().__init__(parent)
         self.controller = controller
@@ -598,29 +628,59 @@ class LoadingPage(Frame):
         self.load_background()
         self.load_gif()
 
+        self.mood_quote = self.get_mood_quote()
+
         # Bắt đầu chạy animation
         self.frame_index = 0
         self.animate_gif()
 
-        # Cute loading text
-        self.loading_texts = "Waiting while your mood gets in tune"
-        self.text_y = 300
-        self.text_label = self.canvas.create_text(
-            500, self.text_y,
-            text=self.loading_texts,
+        # Tạo hai dòng text riêng biệt
+        self.text_label1 = self.canvas.create_text(
+            500, 280,
+            text="Waiting while your mood gets in tune",
             fill="#F2829E",
-            font=("Inter", 35, "bold")
+            font=("Inter", 30, "bold"),
+            state="hidden"
         )
-        # Bắt đầu hiệu ứng fade
-        self.text_opacity = 0
-        self.fade_in = True
-        self.animate_text_fade_loop()
 
-        # Sau 3 giây -> qua HomeScreen
+        self.text_label2 = self.canvas.create_text(
+            500, 280,
+            text=self.mood_quote,
+            fill="#F2829E",
+            font=("Inter", 30, "bold"),
+            state="hidden"
+        )
+
+        # Biến để theo dõi trạng thái hiển thị
+        self.current_text = 0  # 0: chưa hiển thị, 1: đang hiển thị dòng 1, 2: đang hiển thị dòng 2
+        self.text_timer = 0
+
+        # Bắt đầu hiệu ứng chuyển đổi text
+        self.animate_text_sequence()
+
+        # Sau 10 giây -> qua HomeScreen
         self.after(10000, self.goto_home)
 
+    def get_mood_quote(self):
+        """Lấy random quote dựa trên current mood"""
+        try:
+            from app import session
+            current_mood = session.current_user.get("current_mood", {})
+            mood_name = current_mood.get("moodName", "Neutral")
+
+            # Lấy quotes cho mood hiện tại, mặc định là Neutral nếu không tìm thấy
+            quotes = self.MOOD_QUOTES.get(mood_name, self.MOOD_QUOTES["Neutral"])
+
+            # Chọn random một quote
+            import random
+            return random.choice(quotes)
+
+        except Exception as e:
+            print(f"Lỗi khi lấy mood quote: {e}")
+            # Trả về quote mặc định nếu có lỗi
+            return "Every moment tells a story worth remembering."
+
     def load_background(self):
-        """Load nền và overlay pastel."""
         """Load nền và overlay pastel."""
         # Load ảnh gốc
         bg_img = load_image("bg_mood.png", size=(1000, 600))
@@ -683,30 +743,29 @@ class LoadingPage(Frame):
             self.frame_index = (self.frame_index + 1) % len(self.frames)
             self.after(fixed_delay, self.animate_gif)
 
-    def animate_text_fade_loop(self):
-        """Hiệu ứng fade in - fade out liên tục cho 1 dòng text"""
-        # Tăng hoặc giảm opacity
-        if self.fade_in:
-            self.text_opacity += 50
-            if self.text_opacity >= 255:
-                self.text_opacity = 255
-                self.fade_in = False
-                # Giữ lại 1 lúc trước khi fade-out
-                self.after(800, self.animate_text_fade_loop)
-                return
-        else:
-            self.text_opacity -= 50
-            if self.text_opacity <= 0:
-                self.text_opacity = 0
-                self.fade_in = True
-                # Giữ lại 1 lúc trước khi fade-in
-                self.after(400, self.animate_text_fade_loop)
-                return
+    def animate_text_sequence(self):
+        """Hiệu ứng chuyển đổi giữa 2 dòng text, mỗi dòng hiện 1 lần"""
+        self.text_timer += 100
 
-        self.canvas.itemconfig(self.text_label)
+        if self.text_timer <= 2000:  # 0-2 giây: Hiển thị dòng 1
+            if self.current_text != 1:
+                self.canvas.itemconfig(self.text_label1, state="normal")
+                self.canvas.itemconfig(self.text_label2, state="hidden")
+                self.current_text = 1
 
-        # Gọi lại chính nó
-        self.after(50, self.animate_text_fade_loop)
+        elif self.text_timer <= 10000:  # 2-10 giây: Hiển thị dòng 2
+            if self.current_text != 2:
+                self.canvas.itemconfig(self.text_label1, state="hidden")
+                self.canvas.itemconfig(self.text_label2, state="normal")
+                self.current_text = 2
+
+        else:  # Sau 10 giây: Ẩn cả hai
+            self.canvas.itemconfig(self.text_label1, state="hidden")
+            self.canvas.itemconfig(self.text_label2, state="hidden")
+            return
+
+        # Tiếp tục cập nhật sau 100ms
+        self.after(100, self.animate_text_sequence)
 
     def goto_home(self):
         """Chuyển sang HomeScreen"""

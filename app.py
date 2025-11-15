@@ -1,6 +1,9 @@
 from ui.homescreen import MainScreen
 from ui.Login_UI import *
 from Connection.connector import db
+import subprocess
+import threading
+
 
 class App(Tk):
     def __init__(self):
@@ -36,7 +39,7 @@ class App(Tk):
         """Xử lý mua bài hát - có thể gọi từ mọi frame"""
         track = song.get("trackName", "Unknown Song")
         artist = song.get("artistName", "Unknown Artist")
-        print(f"🛒 Người dùng nhấn mua: {track} - {artist}")
+        print(f"Người dùng nhấn mua: {track} - {artist}")
 
         # Hiển thị frame Payment
         self.show_frame("Payment")
@@ -47,11 +50,11 @@ class App(Tk):
 
     def show_frame(self, page_name):
         """Hiển thị frame với lazy loading"""
-        print(f"🔄 Switching to: {page_name}")
+        print(f"Switching to: {page_name}")
 
         # Tạo frame nếu chưa có hoặc đã bị hủy
         if page_name not in self.frames or not self.frames[page_name].winfo_exists():
-            print(f"🆕 Creating new frame: {page_name}")
+            print(f"Creating new frame: {page_name}")
             frame_class = self.get_frame_class(page_name)
             frame = frame_class(parent=self.container, controller=self)
             self.frames[page_name] = frame
@@ -83,16 +86,35 @@ class App(Tk):
         if page_name in self.frames:
             # Không hủy frame đang hiện tại
             # if self.current_frame and self.current_frame.__class__.__name__ == page_name:
-            #     print(f"⚠️  Cannot destroy current frame: {page_name}")
+            #     print(f"Cannot destroy current frame: {page_name}")
             #     return
 
             self.frames[page_name].destroy()
             del self.frames[page_name]
-            print(f"✅ Destroyed: {page_name}")
+            print(f" Destroyed: {page_name}")
+
+    import threading
+    import subprocess
+    import os
+
+    def retrain_background(self):
+        """Chạy retrain nền bằng thread + Popen."""
+
+        def _run():
+            try:
+                script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "retrain_model_artist.py")
+                subprocess.Popen(["python", script_path])
+                print(" Retrain đang chạy ngầm…")
+            except Exception as e:
+                print(f" Retrain thất bại: {e}")
+
+        threading.Thread(target=_run, daemon=True).start()
 
     def logout(self):
         """Logout - hiển thị LoginFrame và hủy các frame khác"""
-        print("🚪 Logging out...")
+        print("Logging out...")
+
+        threading.Thread(target=self.retrain_background, daemon=True).start()
 
         # Hiển thị LoginFrame trước
         self.show_frame("LoginFrame")
@@ -105,18 +127,20 @@ class App(Tk):
         frames_to_destroy = [name for name in list(self.frames.keys()) if name != "LoginFrame"]
 
         for frame_name in frames_to_destroy:
-            print(f"🗑️ Destroying: {frame_name}")
+            print(f"Destroying: {frame_name}")
             self.destroy_frame(frame_name)
 
-        print("✅ Logout successful")
+        print(" Logout successful")
 
     def on_close(self):
         """Thoát ứng dụng"""
         # ĐÓNG KẾT NỐI DATABASE
+        threading.Thread(target=self.retrain_background, daemon=True).start()
+
         try:
             self.db.close_connection()
         except Exception as e:
-            print(f"⚠️ Lỗi khi đóng kết nối DB: {e}")
+            print(f"Lỗi khi đóng kết nối DB: {e}")
 
         self.quit()
         self.destroy()

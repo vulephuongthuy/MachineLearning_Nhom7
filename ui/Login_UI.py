@@ -22,7 +22,7 @@ from bson import ObjectId
 from customtkinter import CTkEntry, CTkButton, CTkCheckBox, CTkRadioButton
 
 import session
-# from Connection.connector import db
+from Connection.connector import db
 
 
 class LoginFrame(Frame):
@@ -321,57 +321,79 @@ class SignUpFrame(Frame):
         except Exception as e:
             messagebox.showerror("Error", f"Registration failed: {e}")
 
-    def send_welcome_email(self, user_email):
-        email_address = "thutna23416@st.uel.edu.vn"
-        app_password = "wyas ubap nhqv wwap"
-
-
-        msg = MIMEMultipart('related')
-
-        msg["From"] = email_address
+    def send_welcome_email(self, user_email: str):
+        """Gửi email chào mừng khi người dùng đăng ký thành công."""
+        SENDER_EMAIL = "thutna23416@st.uel.edu.vn"
+        APP_PASSWORD = "wyas ubap nhqv wwap"
+        # Validate email
+        if "@" not in user_email:
+            print(f"Email không hợp lệ: {user_email}")
+            return
+        # Tạo email multipart
+        msg = MIMEMultipart("related")
+        msg["From"] = SENDER_EMAIL
         msg["To"] = user_email
-        msg["Subject"] = "Welcome to Moo_d!"
-
-        # Gán một ID cố định cho ảnh
-        image_cid = 'welcome_image'
-
-        body = f"""
+        msg["Subject"] = "🎧 Welcome to Moo_d Music!"
+        image_cid = "welcome_image"
+        # HTML Template đẹp + gọn + responsive
+        html_body = f"""
         <html>
-        <head></head>
-        <body>
-            <p>Hi there,</p
-            <p>Thank you for signing up for Moo_d Music – your new favorite place to vibe, discover, and enjoy music that matches your mood.</p>
-            <p>We're thrilled to have you on board!</p>
+        <body style="font-family: Arial, sans-serif; color: #333; padding: 0 10px;">
+            <h2 style="color:#F2829E;">Welcome to Moo_d Music! 🎶</h2>
 
-            <p><img src="cid:{image_cid}" alt="Welcome to Moo_d" style="width:100%; max-width:400px;"></p>
+            <p>Hi there,</p>
+            <p>Thank you for signing up for <b>Moo_d Music</b> – 
+            your new favorite place to vibe, discover, and enjoy music that matches your mood.</p>
 
-            <p>Stay tuned for curated playlists, personalized mood tracks, and fresh beats tailored just for you.</p>
-            <p>Let's set the Moo_d together.</p>
             <p>
-                Cheers,<br>  
-                The Moo_d Team
+                We're thrilled to have you on board!  
+                Here’s a warm welcome from our team:
+            </p>
+
+            <div style="text-align:center; margin: 25px 0;">
+                <img src="cid:{image_cid}" 
+                     alt="Welcome to Moo_d" 
+                     style="width:100%; max-width:420px; border-radius:12px;">
+            </div>
+
+            <p>
+                Stay tuned for curated playlists, mood-based recommendations <br>
+                and fresh beats tailored just for you.
+            </p>
+
+            <p>Let's set the Moo_d together! 🌙✨</p>
+
+            <p style="margin-top: 35px;">
+                Cheers,<br>
+                <b>The Moo_d Team</b>
             </p>
         </body>
         </html>
         """
-        msg.attach(MIMEText(body, "html"))
-        image_filename = os.path.join('images', 'welcome.png')
-        try:
-            with open(image_filename, 'rb') as fp:
-                img_data = fp.read()
-            img = MIMEImage(img_data, name=os.path.basename(image_filename))
-            img.add_header('Content-ID', f'<{image_cid}>')
-            msg.attach(img)
-        except FileNotFoundError:
-            print(f"Lỗi: Không tìm thấy tệp ảnh tại '{image_filename}'. Email sẽ được gửi không có ảnh.")
-        except Exception as e:
-            print(f"Lỗi khi đính kèm ảnh: {e}")
+
+        msg.attach(MIMEText(html_body, "html", "utf-8"))
+
+        image_path = Path("images/welcome.png")
+        if image_path.exists():
+            try:
+                with open(image_path, "rb") as f:
+                    img_data = f.read()
+                img = MIMEImage(img_data, name=image_path.name)
+                img.add_header("Content-ID", f"<{image_cid}>")
+                msg.attach(img)
+            except Exception as e:
+                print(f" Lỗi khi đính ảnh: {e}")
+        else:
+            print(f" Không tìm thấy ảnh tại: {image_path}")
+
+        # Gửi email qua SMTP
         try:
             with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-                server.login(email_address, app_password)
-                server.sendmail(email_address, user_email, msg.as_string())
+                server.login(SENDER_EMAIL, APP_PASSWORD)
+                server.sendmail(SENDER_EMAIL, user_email, msg.as_string())
+            print(f"Email chào mừng đã gửi thành công đến {user_email}")
         except Exception as e:
-            print(f"Lỗi khi gửi email đến {user_email}: {e}")
+            print(f" Lỗi khi gửi email: {e}")
 
     def go_back(self):
         """Quay lại màn hình đăng nhập"""
@@ -380,6 +402,12 @@ class SignUpFrame(Frame):
 
 
 class MoodTracker(Frame):
+    MOOD_MAP = {
+        "Happy": 1,
+        "Sad": 2,
+        "Neutral": 3,
+        "Intense": 4
+    }
     def __init__(self, parent, controller):
         super().__init__(parent)
         self.controller = controller
@@ -389,6 +417,7 @@ class MoodTracker(Frame):
 
         self.load_background()
         self.create_widgets()
+
 
     def load_background(self):
         """Load nền và overlay pastel."""
@@ -479,13 +508,113 @@ class MoodTracker(Frame):
         self.canvas.itemconfig(mood, image=self.image_cache[f"{mood}_click"])
 
     def on_release(self, mood):
+        from datetime import datetime
+
         self.canvas.itemconfig(mood, image=self.image_cache[f"{mood}_hover"])
-        print(f"✨ {mood} pressed!")
+        print(f"{mood} pressed!")
+
+        user_id = session.current_user.get("userId")
+        now = datetime.now()
+        month_key = now.strftime("%Y-%m")
+        mood_id = self.MOOD_MAP[mood]
+
+        # ===== Auto historyID không cần counter =====
+        last = db.db.mood_tracking_history.find_one(sort=[("historyID", -1)])
+        history_id = last["historyID"] + 1 if last else 1
+
+        # ===== Lưu lịch sử =====
+        db.db.mood_tracking_history.insert_one({
+            "historyID": history_id,
+            "userId": user_id,
+            "moodID": mood_id,
+            "moodName": mood,
+            "timestamp": now.isoformat() + "Z"
+        })
+
+        #  Lấy summary tháng hiện tại
+        summary = db.db.mood_monthly_summary.find_one(
+            {"userId": user_id, "month": month_key}
+        )
+        #  Nếu chưa có → tạo mới đầy đủ cấu trúc
+        if not summary:
+            summary = {
+                "userId": user_id,
+                "month": month_key,
+                "total_entries": 0,
+                "mood_count": {m: 0 for m in self.MOOD_MAP.keys()},
+                "mood_breakdown": {},
+                "dominant_mood": None
+            }
+
+        #ĐẢM BẢO mood_count luôn có đủ keys (fix cho data cũ)
+        for m in self.MOOD_MAP.keys():
+            if m not in summary["mood_count"]:
+                summary["mood_count"][m] = 0
+
+        # Cập nhật dữ liệu tháng
+        summary["total_entries"] += 1
+        summary["mood_count"][mood] += 1
+
+        total = summary["total_entries"]
+        summary["mood_breakdown"] = {
+            m: round(summary["mood_count"][m] / total, 2)
+            for m in self.MOOD_MAP.keys()
+        }
+
+        summary["dominant_mood"] = max(
+            summary["mood_breakdown"], key=summary["mood_breakdown"].get
+        )
+
+        # ===== Lưu lại vào DB =====
+        db.db.mood_monthly_summary.update_one(
+            {"userId": user_id, "month": month_key},
+            {"$set": summary},
+            upsert=True
+        )
+
+        # ===== Lưu vào session (để HomeScreen lấy mood hiện tại) =====
+        session.current_user["current_mood"] = {
+            "moodID": mood_id,
+            "moodName": mood,
+            "timestamp": now
+        }
+
         self.controller.show_frame("HomeScreen")
         self.controller.show_frame("LoadingPage")
         self.controller.destroy_frame("MoodTracker")
 
 class LoadingPage(Frame):
+    MOOD_QUOTES = {
+        "Happy": [
+            "Your laughter echoed through every moment.",
+            "You danced through the days like sunlight on water.",
+            "Smiles followed you like petals in spring.",
+            "You turned ordinary hours into golden memories.",
+            "Joy wasn't just felt — it was shared."
+        ],
+        "Sad": [
+            "You carried the weight, but never lost your grace.",
+            "Even in silence, your strength spoke volumes.",
+            "The shadows didn't break you — they shaped you.",
+            "You gave yourself permission to feel — and that's brave.",
+            "Sadness softened your edges, but never dimmed your light."
+        ],
+        "Neutral": [
+            "You held steady while the world spun fast.",
+            "Calm was your quiet superpower.",
+            "You moved with intention, not impulse.",
+            "Still waters ran deep in your story.",
+            "You didn't chase highs — you embraced clarity."
+        ],
+        "Intense": [
+            "You roared through the chaos with purpose.",
+            "Every step you took left sparks behind.",
+            "You didn't just show up — you made impact.",
+            "Your energy rewrote the rhythm of the room.",
+            "You burned through limits like they were paper walls."
+        ]
+    }
+
     def __init__(self, parent, controller):
         super().__init__(parent)
         self.controller = controller
@@ -499,29 +628,59 @@ class LoadingPage(Frame):
         self.load_background()
         self.load_gif()
 
+        self.mood_quote = self.get_mood_quote()
+
         # Bắt đầu chạy animation
         self.frame_index = 0
         self.animate_gif()
 
-        # Cute loading text ✨
-        self.loading_texts = "Waiting while your mood gets in tune"
-        self.text_y = 300
-        self.text_label = self.canvas.create_text(
-            500, self.text_y,
-            text=self.loading_texts,
+        # Tạo hai dòng text riêng biệt
+        self.text_label1 = self.canvas.create_text(
+            500, 280,
+            text="Waiting while your mood gets in tune",
             fill="#F2829E",
-            font=("Inter", 35, "bold")
+            font=("Inter", 30, "bold"),
+            state="hidden"
         )
-        # Bắt đầu hiệu ứng fade
-        self.text_opacity = 0
-        self.fade_in = True
-        self.animate_text_fade_loop()
 
-        # Sau 3 giây -> qua HomeScreen
+        self.text_label2 = self.canvas.create_text(
+            500, 280,
+            text=self.mood_quote,
+            fill="#F2829E",
+            font=("Inter", 30, "bold"),
+            state="hidden"
+        )
+
+        # Biến để theo dõi trạng thái hiển thị
+        self.current_text = 0  # 0: chưa hiển thị, 1: đang hiển thị dòng 1, 2: đang hiển thị dòng 2
+        self.text_timer = 0
+
+        # Bắt đầu hiệu ứng chuyển đổi text
+        self.animate_text_sequence()
+
+        # Sau 10 giây -> qua HomeScreen
         self.after(10000, self.goto_home)
 
+    def get_mood_quote(self):
+        """Lấy random quote dựa trên current mood"""
+        try:
+            from app import session
+            current_mood = session.current_user.get("current_mood", {})
+            mood_name = current_mood.get("moodName", "Neutral")
+
+            # Lấy quotes cho mood hiện tại, mặc định là Neutral nếu không tìm thấy
+            quotes = self.MOOD_QUOTES.get(mood_name, self.MOOD_QUOTES["Neutral"])
+
+            # Chọn random một quote
+            import random
+            return random.choice(quotes)
+
+        except Exception as e:
+            print(f"Lỗi khi lấy mood quote: {e}")
+            # Trả về quote mặc định nếu có lỗi
+            return "Every moment tells a story worth remembering."
+
     def load_background(self):
-        """Load nền và overlay pastel."""
         """Load nền và overlay pastel."""
         # Load ảnh gốc
         bg_img = load_image("bg_mood.png", size=(1000, 600))
@@ -584,30 +743,29 @@ class LoadingPage(Frame):
             self.frame_index = (self.frame_index + 1) % len(self.frames)
             self.after(fixed_delay, self.animate_gif)
 
-    def animate_text_fade_loop(self):
-        """Hiệu ứng fade in - fade out liên tục cho 1 dòng text"""
-        # Tăng hoặc giảm opacity
-        if self.fade_in:
-            self.text_opacity += 50
-            if self.text_opacity >= 255:
-                self.text_opacity = 255
-                self.fade_in = False
-                # Giữ lại 1 lúc trước khi fade-out
-                self.after(800, self.animate_text_fade_loop)
-                return
-        else:
-            self.text_opacity -= 50
-            if self.text_opacity <= 0:
-                self.text_opacity = 0
-                self.fade_in = True
-                # Giữ lại 1 lúc trước khi fade-in
-                self.after(400, self.animate_text_fade_loop)
-                return
+    def animate_text_sequence(self):
+        """Hiệu ứng chuyển đổi giữa 2 dòng text, mỗi dòng hiện 1 lần"""
+        self.text_timer += 100
 
-        self.canvas.itemconfig(self.text_label)
+        if self.text_timer <= 2000:  # 0-2 giây: Hiển thị dòng 1
+            if self.current_text != 1:
+                self.canvas.itemconfig(self.text_label1, state="normal")
+                self.canvas.itemconfig(self.text_label2, state="hidden")
+                self.current_text = 1
 
-        # Gọi lại chính nó
-        self.after(50, self.animate_text_fade_loop)
+        elif self.text_timer <= 10000:  # 2-10 giây: Hiển thị dòng 2
+            if self.current_text != 2:
+                self.canvas.itemconfig(self.text_label1, state="hidden")
+                self.canvas.itemconfig(self.text_label2, state="normal")
+                self.current_text = 2
+
+        else:  # Sau 10 giây: Ẩn cả hai
+            self.canvas.itemconfig(self.text_label1, state="hidden")
+            self.canvas.itemconfig(self.text_label2, state="hidden")
+            return
+
+        # Tiếp tục cập nhật sau 100ms
+        self.after(100, self.animate_text_sequence)
 
     def goto_home(self):
         """Chuyển sang HomeScreen"""
@@ -892,7 +1050,7 @@ class Payment(Frame):
         # self.countdown_seconds = 0
         # self.is_countdown_running = False
 
-        # ✅ GIẢ LẬP: Lấy track data đầu tiên từ MongoDB
+        # GIẢ LẬP: Lấy track data đầu tiên từ MongoDB
         self.track_data = {}
 
         # Canvas chính
@@ -943,12 +1101,12 @@ class Payment(Frame):
     #
     #         if result:
     #             random_track = result[0]
-    #             print("✅ Đã lấy track ngẫu nhiên từ MongoDB:")
+    #             print("Đã lấy track ngẫu nhiên từ MongoDB:")
     #             print(f"   - Track: {random_track.get('trackName')}")
     #             return random_track
     #
     #     except Exception as e:
-    #         print(f"❌ Lỗi MongoDB: {e}")
+    #         print(f"Lỗi MongoDB: {e}")
     #         return
 
     def load_background(self):
@@ -1216,7 +1374,7 @@ class Payment(Frame):
         """Thêm bài hát vào danh sách purchase (khi thanh toán thành công)"""
         song = self.track_data
         if not song:
-            print("⚠️ Không có bài hát để thêm vào purchase.")
+            print("Không có bài hát để thêm vào purchase.")
             return False
 
         try:
@@ -1226,7 +1384,7 @@ class Payment(Frame):
 
             # Kiểm tra đã mua trước đó chưa
             if db.db["purchase"].find_one({"userId": user_id, "trackId": track_id}):
-                print("ℹ️ Bài hát đã được mua trước đó.")
+                print("Bài hát đã được mua trước đó.")
                 return True
 
             # Tạo ObjectId mới
@@ -1251,7 +1409,7 @@ class Payment(Frame):
             return True
 
         except Exception as e:
-            print(f"❌ Lỗi khi thêm purchase: {e}")
+            print(f"Lỗi khi thêm purchase: {e}")
             return False
 
     # PHIÊN BẢN TỐI ƯU - ĐỌC TRỰC TIẾP TỪ DB
@@ -1276,14 +1434,14 @@ class Payment(Frame):
 
             # Hiển thị success message
             self.success_canvas.create_text(500, 250,
-                                            text="✅ PAYMENT SUCCESSFUL!",
+                                            text="PAYMENT SUCCESSFUL!",
                                             font=("Inter", 24, "bold"),
                                             fill="#89A34E")
             self.success_canvas.create_text(500, 300,
                                             text="Thank you for your purchase!",
                                             font=("Inter", 16), fill="#F2829E")
 
-            print("✅ Payment successful - MainScreen sẽ kiểm tra DB trực tiếp")
+            print("Payment successful - MainScreen sẽ kiểm tra DB trực tiếp")
 
             # Tự động quay về home sau 2 giây
             self.after(2000, self.close_payment_frame)

@@ -1,7 +1,11 @@
 import pandas as pd
+import time
+
+import session
+
 
 def load_data_from_mongodb(db_connection):
-    """Load và xử lý data - SIÊU NGẮN GỌN & NHANH"""
+    """Load và xử lý data"""
 
     # Định nghĩa projections
     projections = {
@@ -23,9 +27,14 @@ def load_data_from_mongodb(db_connection):
         for col in collections
     ]
 
-    # Convert userId to string
-    for df in [favorites, ratings, purchased, mood_hist, users]:
-        df['userId'] = df['userId'].astype(str)
+    # Convert userId to string - CHỈ THỰC HIỆN VỚI DF CÓ COLUMN 'userId'
+    dataframes_to_convert = [favorites, ratings, purchased, mood_hist, users]
+
+    for df in dataframes_to_convert:
+        if 'userId' in df.columns:  # Kiểm tra xem cột có tồn tại không
+            df['userId'] = df['userId'].astype(str)
+        else:
+            print(f"Cảnh báo: DataFrame thiếu cột 'userId'. Các cột có sẵn: {list(df.columns)}")
 
     # Tính toán chính
     favorites_with_artist = favorites.merge(tracks[['trackId', 'artistId']],
@@ -96,15 +105,15 @@ def load_data_from_mongodb(db_connection):
                     "genre_similarity": 0})
 
     # Tracks with features
-    feature_cols = ["recency_score", "rating_score", "artist_similarity",
-                    "genre_similarity"]
-    features_to_merge = ['trackId'] + feature_cols + ['mood_community']
+    features_to_merge = ["trackId", "rating_score", "recency_score", "cf_score",
+         "mood_community"]
     tracks_with_features = tracks.merge(
         df[features_to_merge].drop_duplicates(subset=['trackId']), on='trackId',
         how='left')
 
-    for feat in feature_cols:
-        tracks_with_features[feat] = tracks_with_features[feat].fillna(0)
+    for feat in features_to_merge:
+        if feat != 'trackId':  # 🎯 BỎ QUA trackId
+            tracks_with_features[feat] = tracks_with_features[feat].fillna(0)
     tracks_with_features['mood_community'] = tracks_with_features[
         'mood_community'].fillna(1)
 
@@ -113,15 +122,16 @@ def load_data_from_mongodb(db_connection):
         'ratings': ratings,
         'purchased': purchased, 'mood_hist': mood_hist, 'song_mood': song_mood,
         'favorites_with_artist': favorites_with_artist, 'df': df,
-        'current_mood': current_mood
+        'current_mood': current_mood,
+        'features_to_merge': features_to_merge
     }
 
 def is_new_user(user_id, favorites_with_artist):
-    """Kiểm tra user có phải là user mới không - GIỐNG GỐC"""
+    """Kiểm tra user có phải là user mới không"""
     return user_id not in favorites_with_artist['userId'].values
 
 def get_system_top_artists_genres(favorites_with_artist, top_n=20):
-    """Lấy top artists và genres phổ biến nhất toàn hệ thống - GIỐNG GỐC"""
+    """Lấy top artists và genres phổ biến nhất toàn hệ thống"""
     top_artists = favorites_with_artist.groupby(
         ['artistId', 'artistName']).size().reset_index(name='total_favs')
     top_artists = top_artists.nlargest(top_n, 'total_favs')
@@ -143,7 +153,7 @@ def get_system_top_artists_genres(favorites_with_artist, top_n=20):
 
 
 def calculate_new_user_score(track_row, system_top):
-    """Tính điểm cho bài hát với user mới - GIỐNG GỐC"""
+    """Tính điểm cho bài hát với user mới"""
     score = 0.0
     weights = {'recency': 0.40, 'rating': 0.30, 'top_artist': 0.15,
                'top_genre': 0.15}
@@ -206,16 +216,14 @@ def recommend_for_new_user(user_id, components, db_connection, top_n=10,
     ratings_df = mongodb_data['ratings']
     favorites_df = mongodb_data['favorites_with_artist']
 
-    #LẤY MOOD MỚI NHẤT TỪ MONGODB
+    # LẤY MOOD MỚI NHẤT TỪ SESSION
     try:
-        latest_mood = db_connection.db["mood_tracking_history"].find_one(
-            {"userId": user_id}, sort=[("timestamp", -1)]
-        )
-        current_mood_id = latest_mood.get("moodID", 1) if latest_mood else 1
+        current_mood_data = session.current_user.get("current_mood", {})
+        current_mood_id = current_mood_data.get("moodID", 1)
         print(
-            f"🎭 Latest moodID from MongoDB for user {user_id}: {current_mood_id}")
+            f"Current moodID from session for user {user_id}: {current_mood_id}")
     except Exception as e:
-        print(f"❌ Error getting mood from MongoDB: {e}")
+        print(f"Error getting mood from session: {e}")
         current_mood_id = 1
 
     system_top = get_system_top_artists_genres(favorites_df)
@@ -247,14 +255,6 @@ def recommend_for_new_user(user_id, components, db_connection, top_n=10,
     if len(mood_matched_pool) == 0:
         mood_matched_pool = candidate_pool.copy()
 
-    #Thêm fav_count
-    fav_counts = favorites_df.groupby('trackId').size().reset_index(
-        name='fav_count')
-    mood_matched_pool = mood_matched_pool.merge(
-        fav_counts[['trackId', 'fav_count']], on='trackId', how='left')
-    mood_matched_pool['fav_count'] = mood_matched_pool['fav_count'].fillna(0)
-
-    # Lấy purchased từ MongoDB thay vì components
     try:
         # Lấy danh sách trackId đã mua từ MongoDB (giữ nguyên int)
         user_purchased_tracks = db_connection.db["purchase"].find(
@@ -264,9 +264,9 @@ def recommend_for_new_user(user_id, components, db_connection, top_n=10,
         user_purchased = set(
             [doc["trackId"] for doc in user_purchased_tracks])  # Giữ nguyên int
         print(
-            f"📦 Loaded {len(user_purchased)} purchased tracks from MongoDB for user {user_id}")
+            f"Loaded {len(user_purchased)} purchased tracks from MongoDB for user {user_id}")
     except Exception as e:
-        print(f"❌ Error getting purchased tracks from MongoDB: {e}")
+        print(f"Error getting purchased tracks from MongoDB: {e}")
         user_purchased = set()
 
     #Loại bỏ bài đã mua
@@ -314,16 +314,14 @@ def recommend_for_user(user_id, components, db_connection, top_n=10,
     model = components['model']
     feature_cols = components['feature_cols']
 
-    #LẤY MOOD MỚI NHẤT TỪ MONGODB
+    # LẤY MOOD MỚI NHẤT TỪ SESSION
     try:
-        latest_mood = db_connection.db["mood_tracking_history"].find_one(
-            {"userId": user_id}, sort=[("timestamp", -1)]
-        )
-        current_mood_id = latest_mood.get("moodID", 1) if latest_mood else 1
+        current_mood_data = session.current_user.get("current_mood", {})
+        current_mood_id = current_mood_data.get("moodID", 1)
         print(
-            f"🎭 Latest moodID from MongoDB for user {user_id}: {current_mood_id}")
+            f"Current moodID from session for user {user_id}: {current_mood_id}")
     except Exception as e:
-        print(f"❌ Error getting mood from MongoDB: {e}")
+        print(f"Error getting mood from session: {e}")
         current_mood_id = 1
 
     #Kiểm tra user mới
@@ -344,7 +342,7 @@ def recommend_for_user(user_id, components, db_connection, top_n=10,
         user_purchased = set(
             [doc["trackId"] for doc in user_purchased_tracks])  # Giữ nguyên int
     except Exception as e:
-        print(f"❌ Error getting purchased tracks from MongoDB: {e}")
+        print(f"Error getting purchased tracks from MongoDB: {e}")
         user_purchased = set()
 
     #Lọc bài chưa mua
@@ -352,8 +350,26 @@ def recommend_for_user(user_id, components, db_connection, top_n=10,
     candidate_df = tracks_df[~tracks_df["trackId"].isin(user_purchased)].copy()
     candidate_df["userId"] = user_id
 
-    #Merge với features từ df gốc
-    candidate_df = candidate_df.drop_duplicates(subset="trackId")
+    user_favs = favorites_with_artist[
+        favorites_with_artist['userId'] == user_id]
+    if len(user_favs) > 0:
+        artist_counts = user_favs['artistId'].value_counts()
+        genre_counts = user_favs['primaryGenreName'].value_counts()
+        total_favs = len(user_favs)
+
+        candidate_df["artist_similarity"] = candidate_df['artistId'].map(
+            lambda x: 0.7 + 0.3 * (artist_counts.get(x,
+                                                     0) / total_favs) if artist_counts.get(
+                x, 0) > 0 else 0
+        )
+        candidate_df["genre_similarity"] = candidate_df['primaryGenreName'].map(
+            lambda x: 0.7 + 0.3 * (genre_counts.get(x,
+                                                    0) / total_favs) if genre_counts.get(
+                x, 0) > 0 else 0
+        )
+    else:
+        candidate_df["artist_similarity"] = 0
+        candidate_df["genre_similarity"] = 0
 
     #Lọc theo mood (SO MOOD VỚI MONGODB)
     mood_matched_df = candidate_df[

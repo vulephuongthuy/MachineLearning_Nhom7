@@ -453,7 +453,7 @@ class ArtistDetailFrame(Frame):
 
         error_label = Label(
             self.content_frame,
-            text="❌ Error loading artist data",
+            text="Error loading artist data",
             bg="#F7F7DC",
             fg="#FF6B6B",
             font=("Inter", 16)
@@ -521,7 +521,7 @@ class ArtistDetailFrame(Frame):
             self.display_album_tracks(tracks)
 
         except Exception as e:
-            print(f"❌ Error loading album tracks: {e}")
+            print(f"Error loading album tracks: {e}")
             self.show_tracks_error_message()
 
     def display_album_tracks(self, tracks):
@@ -586,7 +586,7 @@ class ArtistDetailFrame(Frame):
 
         error_label = Label(
             self.content_frame,
-            text="❌ Error loading tracks",
+            text="Error loading tracks",
             bg="#F7F7DC",
             fg="#FF6B6B",
             font=("Inter", 16)
@@ -600,7 +600,7 @@ class ArtistDetailFrame(Frame):
             track_id = track.get('trackId')
             return db.db["tracks"].find_one({"trackId": int(track_id)}) or track
         except Exception as e:
-            print(f"❌ Error loading song data: {e}")
+            print(f"Error loading song data: {e}")
             return track
 
     def load_track_image_async(self, track, song_data, img_label):
@@ -624,7 +624,7 @@ class ArtistDetailFrame(Frame):
                 self.parent.after(0, lambda: self.update_image_label(img_label, img, track))
 
             except Exception as e:
-                print(f"❌ Error loading image: {e}")
+                print(f"Error loading image: {e}")
                 self.parent.after(0, lambda: self.update_image_label(img_label, None, track))
 
         threading.Thread(target=load_image, daemon=True).start()
@@ -659,7 +659,7 @@ class ArtistDetailFrame(Frame):
                 ))
 
             except Exception as e:
-                print(f"❌ Error checking purchase: {e}")
+                print(f"Error checking purchase: {e}")
                 self.parent.after(0, lambda: self.bind_payment_events(widgets, song_data))
 
         threading.Thread(target=check_purchase, daemon=True).start()
@@ -695,7 +695,7 @@ class ArtistDetailFrame(Frame):
             buy_btn.pack(side="right", padx=(0, 10))
 
         except Exception as e:
-            print(f"❌ Lỗi khi tạo nút mua hàng: {e}")
+            print(f"Lỗi khi tạo nút mua hàng: {e}")
 
     def bind_play_events(self, widgets, track_id):
         """Bind sự kiện phát nhạc - sử dụng songs từ parent"""
@@ -703,22 +703,19 @@ class ArtistDetailFrame(Frame):
         def play_handler(event, t_id=track_id):
             print(f"🎵 Playing track {t_id}")
 
-            # 🔥 DEBUG: KIỂM TRA CẤU TRÚC
             print(f"   - Có parent: {hasattr(self, 'parent')}")
             if hasattr(self, 'parent'):
                 print(f"   - Có songs: {hasattr(self.parent, 'songs')}")
                 print(f"   - Type của songs: {type(self.parent.songs)}")
                 print(f"   - Có on_song_click: {hasattr(self.parent.songs, 'on_song_click')}")
 
-            # 🔥 SỬ DỤNG SONGS TỪ PARENT
             if hasattr(self, 'parent') and hasattr(self.parent, 'songs'):
                 if hasattr(self.parent.songs, 'on_song_click'):
                     self.parent.songs.on_song_click(t_id)
-                    print("✅ Đã gọi on_song_click thành công")
                 else:
-                    print("❌ songs không có hàm on_song_click")
+                    print("songs không có hàm on_song_click")
             else:
-                print("❌ Không tìm thấy songs từ parent")
+                print("Không tìm thấy songs từ parent")
 
         for widget in widgets:
             widget.bind("<Button-1>", play_handler)

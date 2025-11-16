@@ -28,7 +28,6 @@ class Connector:
         try:
             self.client = MongoClient(self.connection_string)
             self.db = self.client[self.database_name]
-            print(f"Đã kết nối thành công tới database: {self.database_name}")
         except Exception as e:
             print(f"Lỗi kết nối MongoDB: {e}")
             raise
@@ -37,7 +36,6 @@ class Connector:
         """Đóng kết nối"""
         if self.client:
             self.client.close()
-            print("✅ Đã đóng kết nối MongoDB")
 
     def insert_one(self, collection_name: str, document: Dict) -> str:
         """
@@ -53,10 +51,9 @@ class Connector:
         try:
             collection = self.db[collection_name]
             result = collection.insert_one(document)
-            print(f"✅ Đã thêm document với ID: {result.inserted_id}")
             return str(result.inserted_id)
         except Exception as e:
-            print(f"❌ Lỗi khi thêm document: {e}")
+            print(f"Lỗi khi thêm document: {e}")
             raise
 
     def insert_many(self, collection_name: str, documents: List[Dict]) -> List[str]:
@@ -74,10 +71,9 @@ class Connector:
             collection = self.db[collection_name]
             result = collection.insert_many(documents)
             inserted_ids = [str(id) for id in result.inserted_ids]
-            print(f"✅ Đã thêm {len(inserted_ids)} documents")
             return inserted_ids
         except Exception as e:
-            print(f"❌ Lỗi khi thêm nhiều documents: {e}")
+            print(f"Lỗi khi thêm nhiều documents: {e}")
             raise
 
     def find_one(self, collection_name: str, query: Dict = None) -> Optional[Dict]:
@@ -96,7 +92,7 @@ class Connector:
             document = collection.find_one(query or {})
             return document
         except Exception as e:
-            print(f"❌ Lỗi khi tìm document: {e}")
+            print(f"Lỗi khi tìm document: {e}")
             raise
 
     def find_all(self, collection_name: str, query: Dict = None, limit: int = 0) -> List[Dict]:
@@ -118,7 +114,7 @@ class Connector:
                 cursor = cursor.limit(limit)
             return list(cursor)
         except Exception as e:
-            print(f"❌ Lỗi khi tìm documents: {e}")
+            print(f"Lỗi khi tìm documents: {e}")
             raise
 
     def update_one(self, collection_name: str, query: Dict, update_data: Dict) -> bool:
@@ -136,10 +132,9 @@ class Connector:
         try:
             collection = self.db[collection_name]
             result = collection.update_one(query, {"$set": update_data})
-            print(f"✅ Đã cập nhật {result.modified_count} document")
             return result.modified_count > 0
         except Exception as e:
-            print(f"❌ Lỗi khi cập nhật document: {e}")
+            print(f"Lỗi khi cập nhật document: {e}")
             raise
 
     def delete_one(self, collection_name: str, query: Dict) -> bool:
@@ -156,10 +151,9 @@ class Connector:
         try:
             collection = self.db[collection_name]
             result = collection.delete_one(query)
-            print(f"✅ Đã xóa {result.deleted_count} document")
             return result.deleted_count > 0
         except Exception as e:
-            print(f"❌ Lỗi khi xóa document: {e}")
+            print(f"Lỗi khi xóa document: {e}")
             raise
 
     def count_documents(self, collection_name: str, query: Dict = None) -> int:
@@ -177,7 +171,7 @@ class Connector:
             collection = self.db[collection_name]
             return collection.count_documents(query or {})
         except Exception as e:
-            print(f"❌ Lỗi khi đếm documents: {e}")
+            print(f"Lỗi khi đếm documents: {e}")
             raise
 
     def create_index(self, collection_name: str, field: str, unique: bool = False):
@@ -192,9 +186,8 @@ class Connector:
         try:
             collection = self.db[collection_name]
             collection.create_index([(field, pymongo.ASCENDING)], unique=unique)
-            print(f"✅ Đã tạo index cho field: {field}")
         except Exception as e:
-            print(f"❌ Lỗi khi tạo index: {e}")
+            print(f"Lỗi khi tạo index: {e}")
             raise
 
     def __enter__(self):
@@ -205,5 +198,5 @@ class Connector:
         """Context manager exit"""
         self.close_connection()
 
-# Global instance - dùng chung cho cả app
+# Global instance
 db = Connector()

@@ -30,21 +30,13 @@ class App(Tk):
 
         # Hiển thị frame đầu tiên
         self.show_frame("LoginFrame")
-        # self.show_frame("ProfileFrame")
 
     def get_db(self):
         return self.db
 
     def process_payment(self, song):
         """Xử lý mua bài hát - có thể gọi từ mọi frame"""
-        track = song.get("trackName", "Unknown Song")
-        artist = song.get("artistName", "Unknown Artist")
-        print(f"Người dùng nhấn mua: {track} - {artist}")
-
-        # Hiển thị frame Payment
         self.show_frame("Payment")
-
-        # Truyền dữ liệu bài hát sang Payment frame
         payment_frame = self.frames["Payment"]
         payment_frame.set_track(song)
 
@@ -84,18 +76,9 @@ class App(Tk):
     def destroy_frame(self, page_name):
         """Hủy frame để giải phóng bộ nhớ"""
         if page_name in self.frames:
-            # Không hủy frame đang hiện tại
-            # if self.current_frame and self.current_frame.__class__.__name__ == page_name:
-            #     print(f"Cannot destroy current frame: {page_name}")
-            #     return
-
             self.frames[page_name].destroy()
             del self.frames[page_name]
             print(f" Destroyed: {page_name}")
-
-    import threading
-    import subprocess
-    import os
 
     def retrain_background(self):
         """Chạy retrain nền bằng thread + Popen."""
@@ -134,7 +117,6 @@ class App(Tk):
 
     def on_close(self):
         """Thoát ứng dụng"""
-        # ĐÓNG KẾT NỐI DATABASE
         threading.Thread(target=self.retrain_background, daemon=True).start()
 
         try:

@@ -46,7 +46,6 @@ def get_cached_user_data(db, user_id):
     }
 
     _user_data_cache[user_id] = user_data
-    print(f"Cached: {len(purchased_tracks)} tracks, {len(purchased_artists)} artists")
     return user_data
 
 
@@ -241,11 +240,9 @@ def calculate_track_score(user_id, track, purchased_artists=None):
     """Tính điểm gợi ý cho bài hát - OPTIMIZED"""
     score = 0.0
     track_id_str = str(track['trackId'])
-
-    # 1. Matrix Factorization Score - CF
-    mf_score = 0
     has_mf_score = False
 
+    mf_score = 0
     if mf_model and str(user_id) in mf_model['user_idx_map'] and track_id_str in mf_model['track_idx_map']:
         u_idx = mf_model['user_idx_map'][str(user_id)]
         i_idx = mf_model['track_idx_map'][track_id_str]
@@ -256,10 +253,8 @@ def calculate_track_score(user_id, track, purchased_artists=None):
         i_idx = mf_model['track_idx_map'][track_id_str]
         track_scores = mf_model['R_pred'][:, i_idx]
         mf_score = float(np.mean(track_scores[track_scores > 0]))
-        # Giảm trọng số vì đây là average
         mf_score *= 0.7
 
-    # 2. Content-based Similarity Score
     content_based_score = track.get('similarity', 0)
 
     if has_mf_score:
@@ -267,7 +262,7 @@ def calculate_track_score(user_id, track, purchased_artists=None):
         score += 0.40 * content_based_score
     else:
         score += 0.20 * mf_score
-        score += 0.80 * content_based_score
+        score += 0.70 * content_based_score
 
     if purchased_artists and str(track.get('artistId', '')) in purchased_artists:
         score += 0.05

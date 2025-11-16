@@ -511,7 +511,6 @@ class MoodTracker(Frame):
         from datetime import datetime
 
         self.canvas.itemconfig(mood, image=self.image_cache[f"{mood}_hover"])
-        print(f"{mood} pressed!")
 
         user_id = session.current_user.get("userId")
         now = datetime.now()
@@ -1045,12 +1044,7 @@ class Payment(Frame):
         super().__init__(parent)
         self.controller = controller
         self.image_cache = {}
-
         self.payment_var = StringVar(value="")
-        # self.countdown_seconds = 0
-        # self.is_countdown_running = False
-
-        # GIẢ LẬP: Lấy track data đầu tiên từ MongoDB
         self.track_data = {}
 
         # Canvas chính
@@ -1087,27 +1081,6 @@ class Payment(Frame):
 
         except Exception as e:
             print(f"Lỗi khi cập nhật track: {e}")
-    # def get_sample_track_data(self):
-    #     """Lấy track data từ MongoDB với điều kiện cụ thể"""
-    #     try:
-    #         db = self.controller.get_db()
-    #
-    #         # Truy cập client trực tiếp
-    #         collection = db.db["tracks"]  # db.db là database object
-    #
-    #         # Dùng aggregation pipeline với $sample
-    #         pipeline = [{"$sample": {"size": 1}}]
-    #         result = list(collection.aggregate(pipeline))
-    #
-    #         if result:
-    #             random_track = result[0]
-    #             print("Đã lấy track ngẫu nhiên từ MongoDB:")
-    #             print(f"   - Track: {random_track.get('trackName')}")
-    #             return random_track
-    #
-    #     except Exception as e:
-    #         print(f"Lỗi MongoDB: {e}")
-    #         return
 
     def load_background(self):
         """Tải ảnh nền cho giao diện"""
@@ -1265,11 +1238,10 @@ class Payment(Frame):
                 border_width_unchecked=3,
                 border_color="#F2829E",
                 fg_color="#89A34E",
-                hover_color="#89A34E",  # Hiệu ứng hover có sẵn
+                hover_color="#89A34E",
                 bg_color="#FEB4C6",
                 variable=self.payment_var,
-                value=method["name"].lower(),
-                command=lambda v=method["name"].lower(): print(f"Selected: {v}")
+                value=method["name"].lower()
             ).place(x=method["x"], y=method["y"])
 
     def purchase_now(self):
@@ -1374,7 +1346,6 @@ class Payment(Frame):
         """Thêm bài hát vào danh sách purchase (khi thanh toán thành công)"""
         song = self.track_data
         if not song:
-            print("Không có bài hát để thêm vào purchase.")
             return False
 
         try:
@@ -1384,7 +1355,6 @@ class Payment(Frame):
 
             # Kiểm tra đã mua trước đó chưa
             if db.db["purchase"].find_one({"userId": user_id, "trackId": track_id}):
-                print("Bài hát đã được mua trước đó.")
                 return True
 
             # Tạo ObjectId mới
@@ -1412,7 +1382,6 @@ class Payment(Frame):
             print(f"Lỗi khi thêm purchase: {e}")
             return False
 
-    # PHIÊN BẢN TỐI ƯU - ĐỌC TRỰC TIẾP TỪ DB
     def payment_successful(self):
         """Xử lý khi thanh toán thành công - Phiên bản tối ưu"""
         try:
@@ -1440,8 +1409,6 @@ class Payment(Frame):
             self.success_canvas.create_text(500, 300,
                                             text="Thank you for your purchase!",
                                             font=("Inter", 16), fill="#F2829E")
-
-            print("Payment successful - MainScreen sẽ kiểm tra DB trực tiếp")
 
             # Tự động quay về home sau 2 giây
             self.after(2000, self.close_payment_frame)

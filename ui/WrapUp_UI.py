@@ -76,12 +76,6 @@ class WrapUpFrame(Frame):
         self.image_cache["rec_page2"] = load_image("rec_page2.png", round_corner=0.2, size=(525, 375))
         frame.create_image(480, 330, image=self.image_cache["rec_page2"])
 
-        # mood_counts = self.user_data.get("mood_count", {})
-        # y = 200
-        # for mood, count in mood_counts.items():
-        #     frame.create_text(480, y, text=f"{mood}: {count} times", font=("Inter", 20), fill="#6B705C")
-        #     y += 40
-        # 🐾 Icon mèo mood
         mood_icons = {
             "Neutral": "neutral.png",
             "Happy": "happy.png",
@@ -110,7 +104,7 @@ class WrapUpFrame(Frame):
         frame.create_image(480, 330, image=self.image_cache["rec_page3"])
         frame.create_text(480, 100, text="💖 Favorite Artists 💖", fill="#89A34E", font=("Inter Bold", 33, "bold"))
 
-        # 🎵 Danh sách nghệ sĩ (tối đa 5)
+        # Danh sách nghệ sĩ (tối đa 5)
         artists = self.user_data.get("top_artists", [])
         if not artists:
             frame.create_text(
@@ -239,11 +233,10 @@ class WrapUpFrame(Frame):
             frame.create_text(x, y, text="♪", font=("Arial", 24, "bold"),
                               fill="#FFFFFF")
 
-            print(f"🎨 Created default artwork for: {title}")
+            print(f"Created default artwork for: {title}")
 
         except Exception as e:
-            print(f"❌ Default artwork failed: {e}")
-            # Fallback cuối cùng - tạo hình chữ nhật màu đơn giản
+            print(f"Default artwork failed: {e}")
             try:
                 img = Image.new('RGB', (65, 65), color='#E0E0E0')
                 photo = ImageTk.PhotoImage(img)
@@ -252,7 +245,7 @@ class WrapUpFrame(Frame):
                 frame.create_text(x, y, text="🎵", font=("Arial", 16),
                                   fill="#888888")
             except Exception as e2:
-                print(f"❌ Even simple fallback failed: {e2}")
+                print(f"Even simple fallback failed: {e2}")
 
     # ========== PAGE 5: REFLECTION ==========
     def create_page5(self):
@@ -282,7 +275,7 @@ class WrapUpFrame(Frame):
             right_icon = load_image("right.png", size=(48, 48))
 
             if not left_icon or not right_icon:
-                print("⚠️ Không thể tải ảnh icon điều hướng.")
+                print("Không thể tải ảnh icon điều hướng.")
                 return
 
             # Giữ reference trong cache để tránh bị GC
@@ -300,7 +293,7 @@ class WrapUpFrame(Frame):
                 frame.tag_bind("btn_right", "<Button-1>", lambda e: self.next_page())
 
         except Exception as e:
-            print(f"❌ Lỗi khi tạo nút điều hướng: {e}")
+            print(f"Lỗi khi tạo nút điều hướng: {e}")
 
     def show_page(self, index):
         """Hiển thị đúng trang và cập nhật nút điều hướng"""

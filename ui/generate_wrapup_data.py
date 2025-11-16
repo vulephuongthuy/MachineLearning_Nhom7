@@ -121,7 +121,7 @@ def generate_user_wrapup(userId: str):
 
     return wrapup_doc
 
-# # 🚀 Chạy thử (khi chạy riêng file)
+# # Chạy thử (khi chạy riêng file)
 # if __name__ == "__main__":
 #     current_user_id = "112345"  # user hiện đang đăng nhập (hoặc lấy từ session)
 #     wrapup = generate_user_wrapup(current_user_id)
@@ -133,4 +133,4 @@ def generate_user_wrapup(userId: str):
 # if wrapup_data:
 #     show_wrapup_UI(wrapup_data)  # hiển thị trực tiếp trên UI
 # else:
-#     messagebox.showinfo("Wrap-up", "Không có dữ liệu nghe nhạc cho tháng vừa rồi 💫")
+#     messagebox.showinfo("Wrap-up", "Không có dữ liệu nghe nhạc cho tháng vừa rồi")

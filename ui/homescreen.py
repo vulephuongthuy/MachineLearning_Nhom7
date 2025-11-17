@@ -72,7 +72,7 @@ class MainScreen(Frame):
         self.rating_area = Frame(self.canvas, bg="#F7F7DC")
         self.rating_frame = None
 
-        # 🔥 THÊM MOOD AREA
+        # THÊM MOOD AREA
         self.mood_area = Frame(self, bg="#F7F7DC")
         self.mood_frame = None
         self.mood_manager = MoodManager()
@@ -253,11 +253,11 @@ class MainScreen(Frame):
 
     def open_player(self):
         """Mở MoodPlayerFrame - dùng state thật"""
-        print("🎵 DEBUG: Opening MoodPlayerFrame...")
+        print("DEBUG: Opening MoodPlayerFrame...")
         self.songs.fixed_canvas.place_forget()
         self.player_area.place(x=50, y=0, width=950, height=600)
 
-        # 🔥 BỎ FAKE DATA - DÙNG STATE THẬT
+        # DÙNG STATE THẬT
         print("DEBUG: Current REAL state từ MainScreen:")
         print(f"  - Current song: {self.songs.current_song}")
         print(f"  - Is playing: {self.songs.is_playing}")
@@ -369,11 +369,8 @@ class MainScreen(Frame):
         """Ẩn player frame và pause nhạc"""
         #PAUSE NHẠC KHI ẨN PLAYER
         if hasattr(self, 'songs') and self.songs.is_playing:
-            print("⏸️ Tạm dừng nhạc khi ẩn Player...")
-            # self.songs.player.pause()  # Pause audio thật
-            # GIỮ STATE: vẫn playing nhưng audio paused
-            # self.songs.is_playing = True
-            # self.songs.is_paused = True
+            print("Tạm dừng nhạc khi ẩn Player...")
+
 
         # Ẩn UI (giữ nguyên)
         if self.player_frame and self.player_frame.winfo_exists():

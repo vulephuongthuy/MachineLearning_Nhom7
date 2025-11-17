@@ -3088,7 +3088,7 @@ class Song:
 
     def show_playlist_context_menu(self, event, playlist_name):
         """Hiển thị menu chuột phải cho playlist"""
-        menu = Menu(self.library_canvas, tearoff=0, bg="#FEFBE5", fg="#F2829E", font=("Inter", 12, "bold"))
+        menu = Menu(self.library_canvas, tearoff=0, bg="#FEFBE5", fg="#F2829E", font=("Newsreader Regular", 12, "bold"))
 
         menu.add_command(label="Delete Playlist", command=lambda: self.delete_playlist(playlist_name))
 
@@ -4001,6 +4001,8 @@ class SongListManager:
         artist_label.pack(anchor="w")
 
         track_id = song.get("trackId")
+        if self.list_type == "playlist":
+            self._add_song_context_menu(frame, track_id, song.get("trackName", "Unknown"))
         if (hasattr(self.parent, 'buttons') and
                 self.parent.buttons.current_title == "Add song"):
 
@@ -4024,6 +4026,59 @@ class SongListManager:
             for widget in (frame, img_label, title_label, artist_label):
                 widget.bind("<Button-1>", on_click)
 
+    def _add_song_context_menu(self, frame, track_id, track_name):
+        def show_song_context_menu(event):
+            menu = Menu(self.parent, tearoff=0, bg="#FEFBE5", fg="#F2829E", font=("Newsreader Regular", 12, "bold"))
+            menu.add_command(label="Delete Song", command=lambda: self.delete_song_from_playlist(track_id, track_name))
+
+            try:
+                menu.tk_popup(event.x_root, event.y_root)
+            finally:
+                menu.grab_release()
+
+        # Bind sự kiện chuột phải cho frame bài hát
+        frame.bind("<Button-3>", show_song_context_menu)
+
+        for widget in frame.winfo_children():
+            widget.bind("<Button-3>", show_song_context_menu)
+
+    def delete_song_from_playlist(self, track_id, track_name):
+        """Xóa bài hát khỏi playlist"""
+        result = messagebox.askyesno("Confirm Delete", f"Xóa bài hát '{track_name}' khỏi playlist?")
+
+        if result:
+            try:
+                # Lấy tên playlist hiện tại
+                playlist_name = self.parent.buttons.current_title
+
+                if not playlist_name:
+                    messagebox.showerror("Error", "Không thể xác định playlist!")
+                    return
+
+                db = self.controller.get_db()
+                username = session.current_user.get("username")
+
+                # Xóa bài hát khỏi playlist trong database
+                result = db.db["user"].update_one(
+                    {"username": username, "playlists.name": playlist_name},
+                    {"$pull": {"playlists.$.songs": {"trackId": track_id}}}
+                )
+
+                if result.modified_count > 0:
+                    messagebox.showinfo("Success", f"Đã xóa '{track_name}' khỏi {playlist_name}")
+
+                    # Cập nhật lại hiển thị
+                    self.load_from_db("playlist", playlist_name=playlist_name)
+
+                    # Cập nhật trạng thái phát nhạc nếu cần
+                    if (self.parent.songs.current_song and
+                            self.parent.songs.current_song.trackId == track_id):
+                        self.parent.songs.stop_music()
+                else:
+                    messagebox.showerror("Error", "Không thể xóa bài hát khỏi playlist")
+
+            except Exception as e:
+                messagebox.showerror("Error", f"Lỗi khi xóa bài hát: {str(e)}")
     def toggle_play_playlist(self):
         """Toggle play/pause cho playlist và đồng bộ 2 nút"""
         if not self.parent.songs.current_song or not self.parent.songs.is_playing:

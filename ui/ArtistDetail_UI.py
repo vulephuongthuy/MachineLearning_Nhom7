@@ -30,7 +30,7 @@ class ArtistDetailFrame(Frame):
 
         self.setup_scrollable_frame()
 
-        # QUAN TRỌNG: Đăng ký frame với MainScreen để quản lý
+        # Đăng ký frame với MainScreen để quản lý
         self._register_with_parent()
 
         self.setup_ui()
@@ -172,7 +172,7 @@ class ArtistDetailFrame(Frame):
                         'artwork_url': artwork_url.replace("100x100", "300x300") if artwork_url else ""
                     }
 
-            print(f"🎵 Tổng hợp được {len(albums)} album của {self.artist_name}")
+            print(f" Tổng hợp được {len(albums)} album của {self.artist_name}")
 
             self.display_all_albums(albums)
 
@@ -465,7 +465,7 @@ class ArtistDetailFrame(Frame):
         if not self._is_destroyed:
             self._is_destroyed = True
 
-            # QUAN TRỌNG: Hiển thị lại home content trước
+            # Hiển thị lại home content trước
             if hasattr(self.parent, 'songs'):
                 self.parent.songs.canvas.place(x=103, y=90)
                 self.parent.songs.fixed_canvas.place(x=50, y=522)
@@ -701,7 +701,7 @@ class ArtistDetailFrame(Frame):
         """Bind sự kiện phát nhạc - sử dụng songs từ parent"""
 
         def play_handler(event, t_id=track_id):
-            print(f"🎵 Playing track {t_id}")
+            print(f" Playing track {t_id}")
 
             print(f"   - Có parent: {hasattr(self, 'parent')}")
             if hasattr(self, 'parent'):

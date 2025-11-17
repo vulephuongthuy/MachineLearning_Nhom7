@@ -51,17 +51,17 @@ def generate_user_wrapup(userId: str):
     # === Kiểm tra xem wrap-up đã có trong DB chưa ===
     existing_wrapup = db["user_wrapup"].find_one({"userId": userId, "month": last_month})
     if existing_wrapup:
-        print(f"🟢 Wrap-up for user {userId} month {last_month} already exists.")
+        print(f" Wrap-up for user {userId} month {last_month} already exists.")
         return existing_wrapup
 
     # === Nếu chưa có, tạo wrap-up mới ===
     if history_collection not in db.list_collection_names():
-        print(f"⚠️ No listening history found for month {last_month}.")
+        print(f" No listening history found for month {last_month}.")
         return None
 
     records = list(db[history_collection].find({"userId": userId}))
     if not records:
-        print(f"⚠️ User {userId} has no listening data in {last_month}.")
+        print(f" User {userId} has no listening data in {last_month}.")
         return None
 
     print(f"🎧 Generating wrap-up for user {userId} in {last_month}...")
@@ -120,17 +120,3 @@ def generate_user_wrapup(userId: str):
     print(f"✅ New wrap-up generated & saved for user {userId} ({last_month}).")
 
     return wrapup_doc
-
-# # Chạy thử (khi chạy riêng file)
-# if __name__ == "__main__":
-#     current_user_id = "112345"  # user hiện đang đăng nhập (hoặc lấy từ session)
-#     wrapup = generate_user_wrapup(current_user_id)
-
-# from generate_wrapup_from_mongo import generate_user_wrapup
-#
-# wrapup_data = generate_user_wrapup(session.current_user["_id"])
-#
-# if wrapup_data:
-#     show_wrapup_UI(wrapup_data)  # hiển thị trực tiếp trên UI
-# else:
-#     messagebox.showinfo("Wrap-up", "Không có dữ liệu nghe nhạc cho tháng vừa rồi")

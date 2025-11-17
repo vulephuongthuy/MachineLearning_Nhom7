@@ -68,7 +68,7 @@ class MainScreen(Frame):
         self.player_area = Frame(self.canvas, bg="#C5D7A1")
         self.player_frame = None
 
-        # Ratingarea
+        # Rating_area
         self.rating_area = Frame(self.canvas, bg="#F7F7DC")
         self.rating_frame = None
 
@@ -80,10 +80,6 @@ class MainScreen(Frame):
         #Đồng bộ repeat-love Main-Player
         self.setup_repeat_callbacks()
         self.setup_love_callbacks()
-
-        # self.songs.load_user_songs()
-        # self.purchased_tracks_cache = set()
-        # self.load_purchased_cache()
         self.image_cache = {}
         self.max_image_cache = 500
         # Load all tracks for search
@@ -109,7 +105,6 @@ class MainScreen(Frame):
             command=self.suggestion_canvas.yview
         )
 
-        # SỬA: Đảm bảo tên là suggestion_frame (không có 's')
         self.suggestion_frame = tk.Frame(
             self.suggestion_canvas, bg=self.suggestion_color
         )
@@ -369,7 +364,6 @@ class MainScreen(Frame):
         if hasattr(self, 'songs') and self.songs.is_playing:
             print("Tạm dừng nhạc khi ẩn Player...")
 
-
         # Ẩn UI (giữ nguyên)
         if self.player_frame and self.player_frame.winfo_exists():
             self.player_frame.place_forget()
@@ -611,7 +605,6 @@ class MainScreen(Frame):
             self.after(0, update_ui)
 
         except Exception as e:
-            # Fail silently - giữ icon mặc định
             pass
 
     def handle_suggestion_click(self, song):
@@ -901,10 +894,8 @@ class Button:
                 {"username": username, "playlists.name": old_name},
                 {"$set": {"playlists.$.name": new_name}}
             )
-            # Cập nhật tiêu đề
             self.current_title = new_name
             self.canvas.itemconfig(self.title_text, text=new_name)
-        # Xóa entry
         self.title_entry.destroy()
 
     def create_home_recommendations(self):
@@ -938,7 +929,6 @@ class Button:
         for widget in self.canvas.winfo_children():
             if isinstance(widget, Label) and hasattr(widget, 'image'):
                 widget.destroy()
-        # Ẩn tất cả danh sách trước khi hiển thị danh sách mới
         self.hide_songs_list()
         self.hide_history()
         self.parent.songs.hide_all_views()
@@ -1034,10 +1024,8 @@ class Button:
                                                             text=extra[0], fill=text_color,
                                                             font=("Newsreader Regular", -14)))
 
-        # Gán sự kiện chuột để kéo thanh tiến trình
         c.tag_bind(self.progress_knob, "<B1-Motion>", self.seek_song)
         c.tag_bind(self.progress_fill, "<Button-1>", self.seek_song)
-
         self.update_progress_bar()
 
     def update_progress_bar(self):
@@ -1053,7 +1041,6 @@ class Button:
         if current_time >= total_time:
             current_time = total_time
 
-        # Cập nhật text
         c.itemconfig(self.current_time_text,
                      text=self.format_time(current_time))
         c.itemconfig(self.total_time_text,
@@ -1082,7 +1069,7 @@ class Button:
         #Tính thời gian mới
         click_x = min(max(event.x, start_x), end_x)
         new_time = ((click_x - start_x) / (end_x - start_x)) * total_time
-        #Gọi class `Song` để tua bài
+
         self.songs.is_seeking = True
         self.songs.seek_song(new_time)
 
@@ -1164,7 +1151,6 @@ class Button:
         else:
             c.itemconfig(self.buttons["repeat"],image=self.image_cache["repeat always"])
 
-    # Tạo khung tìm kiếm bo góc bằng ảnh
     @staticmethod
     def create_rounded_rectangle(width, height, radius, color):
         # Tạo ảnh hình chữ nhật bo góc
@@ -1241,7 +1227,7 @@ class Song:
         self.instance = vlc.Instance()
         self.player = self.instance.media_player_new()
 
-        self.songs_list = []  # Danh sách đường dẫn bài hát
+        self.songs_list = []
         self.song_data = {}
         self.history_list = []
         self.playlist_count = 0
@@ -1531,7 +1517,7 @@ class Song:
 
         # Kiểm tra cache trước
         if self.artist_recommendations_cache and self.artist_recommendations_cache.get('user_id') == user_id:
-            print("🎵 Using cached artist recommendations")
+            print(" Using cached artist recommendations")
             self.controller.after(0, lambda: self.display_artists(self.artist_recommendations_cache['data']))
             return
 
@@ -2093,7 +2079,7 @@ class Song:
                 db = self.controller.get_db()
                 history_collection = f"history_{datetime.now().year}-{datetime.now().month:02d}"
 
-                print(f"🎵 Loading top songs for: {mood_name}")
+                print(f" Loading top songs for: {mood_name}")
 
                 pipeline = [
                     {"$group": {
@@ -2175,7 +2161,7 @@ class Song:
             return
 
         if self.genre_recommendations_cache and self.genre_recommendations_cache.get('user_id') == user_id:
-            print("🎵 Using cached genre recommendations")
+            print(" Using cached genre recommendations")
             self.parent.after(0, lambda: self.display_genre_recommendations(self.genre_recommendations_cache))
             return
 
@@ -2253,7 +2239,7 @@ class Song:
 
     def on_genre_click(self, genre_name):
         """Xử lý khi click vào genre - chỉ dùng cache"""
-        print(f"🎵 Genre clicked: {genre_name}")
+        print(f" Genre clicked: {genre_name}")
 
         # Luôn dùng cache
         cached_result = self.genre_recommendations_cache
@@ -3344,7 +3330,7 @@ class Song:
                 self.fixed_canvas,
                 width=clip_width,
                 height=clip_height,
-                bg="#F7F7DC",  # cùng màu nền để hòa vào
+                bg="#F7F7DC",
                 highlightthickness=0
             )
             self.clip_canvas.place(x=x_min, y=y_track - 15)
@@ -3382,7 +3368,6 @@ class Song:
         return next((m for m in managers if m.canvas.winfo_ismapped()), None)
 
     def update_all_play_buttons(self):
-        # kept for backward compatibility - use sync_play_state on managers instead
         self.sync_play_state()
 
     def set_playing_context(self, manager=None, playlist_name=None):

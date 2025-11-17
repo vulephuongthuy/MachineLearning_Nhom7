@@ -3048,7 +3048,7 @@ class Song:
 
         self.create_library_display(5, 7, "Owned Songs", "owned song.png", self.handle_card_click, "owned_songs")
         self.create_library_display(235, 7, "Liked Songs", "liked song.png", self.handle_card_click, "liked_songs")
-        self.library_canvas.create_text(4, 210, text="My playlists", fill="#89A34E", font=("Inter", 24), anchor="nw")
+        self.library_canvas.create_text(4, 210, text="My playlists", fill="#89A34E", font=("Coiny Regular", 24), anchor="nw")
         self.create_library_display(5, 270, "", "create.png", self.handle_create_playlist)
 
         self.display_playlists()
@@ -3065,7 +3065,7 @@ class Song:
             img_id = self.library_canvas.create_rectangle(x, y, x + 175, y + 150,
                                                           fill="#F2829E", outline="#89A34E", width=2)
         text_id = self.library_canvas.create_text(x + 85, y + 170, text=label,
-                                                  fill="#89A34E", font=("Inter", 18), anchor="center")
+                                                  fill="#89A34E", font=("Inter", 18,"bold"), anchor="center")
         if callback_arg is not None:
             self.library_canvas.tag_bind(img_id, "<Button-1>", lambda e, arg=callback_arg: callback(arg))
             self.library_canvas.tag_bind(text_id, "<Button-1>", lambda e, arg=callback_arg: callback(arg))
@@ -3091,7 +3091,7 @@ class Song:
             img_id = self.library_canvas.create_image(x, y, image=img, anchor="nw")
             self.image_cache[label] = img
 
-        text_id = self.library_canvas.create_text(x + 15, y + 160, text=label, fill="#89A34E", font=("Inter", 18),
+        text_id = self.library_canvas.create_text(x + 15, y + 160, text=label, fill="#89A34E", font=("Inter", 18,"bold"),
                                                   anchor="nw")
 
         self.library_canvas.tag_bind(img_id, "<Button-1>", lambda e, name=label: self.show_playlist(name))

@@ -64,7 +64,7 @@ class WrapUpFrame(Frame):
         self.create_nav_buttons(frame)
         return frame
 
-    # ========== PAGE 2: MOOD MIX ==========
+    # PAGE 2: MOOD MIX
     def create_page2(self):
         frame = Canvas(self, bg="#EAF4D3", width=950, height=600, highlightthickness=0)
         self.image_cache["bg_page1_1"] = load_image("bg_page1_1.jpg", opacity=0.4, size=(960, 610))
@@ -95,7 +95,7 @@ class WrapUpFrame(Frame):
         self.create_nav_buttons(frame)
         return frame
 
-    # ========== PAGE 3: FAVORITE ARTISTS ==========
+    # PAGE 3: FAVORITE ARTISTS
     def create_page3(self):
         frame = Canvas(self, bg="#FBE8DD", width=950, height=600, highlightthickness=0)
         self.image_cache["bg_page3"] = load_image("bg_page3.jpg", opacity=0.6, size=(960, 600))
@@ -109,7 +109,7 @@ class WrapUpFrame(Frame):
         if not artists:
             frame.create_text(
                 480, 310,
-                text="No artist data found 💿",
+                text="No artist data found ",
                 fill="#6B705C",
                 font=("Inter Italic", 18)
             )
@@ -129,7 +129,7 @@ class WrapUpFrame(Frame):
         self.create_nav_buttons(frame)
         return frame
 
-    # ========== PAGE 4: TOP SONGS ==========
+    # PAGE 4: TOP SONGS
     def create_page4(self):
         frame = Canvas(self, bg="#F7F7DC", width=950, height=600,
                        highlightthickness=0)
@@ -160,11 +160,7 @@ class WrapUpFrame(Frame):
 
             # FIX: Kiểm tra và xử lý URL bị truncated
             if artwork and '…' in artwork:
-                print(f"🛠️ Artwork URL truncated for: {title}")
-                artwork = None  # Đánh dấu là invalid
-
-            # Debug: in ra URL artwork để kiểm tra
-            print(f"🎵 Loading artwork: {title} -> {artwork}")
+                artwork = None
 
             # Khung nền cho mỗi bài
             frame.create_image(480, y + 20, image=self.image_cache["song_box"])
@@ -179,8 +175,7 @@ class WrapUpFrame(Frame):
                     }
                     response = requests.get(artwork, timeout=10,
                                             headers=headers)
-                    response.raise_for_status()  # Kiểm tra HTTP errors
-
+                    response.raise_for_status()
                     img_data = response.content
                     pil = Image.open(io.BytesIO(img_data)).resize((65, 65))
                     photo = ImageTk.PhotoImage(pil)
@@ -247,7 +242,7 @@ class WrapUpFrame(Frame):
             except Exception as e2:
                 print(f"Even simple fallback failed: {e2}")
 
-    # ========== PAGE 5: REFLECTION ==========
+    # PAGE 5: REFLECTION
     def create_page5(self):
         frame = Canvas(self, bg="#FFE9E9", width=950, height=600, highlightthickness=0)
         self.user_data.get("dominant_mood", "Neutral")
@@ -262,7 +257,7 @@ class WrapUpFrame(Frame):
         self.create_nav_buttons(frame)
         return frame
 
-    # ========== PAGE CONTROL ==========
+    # PAGE CONTROL
     def create_nav_buttons(self, frame):
         """Tạo nút điều hướng trái/phải bằng ảnh, cập nhật theo trang hiện tại"""
         try:
@@ -275,7 +270,6 @@ class WrapUpFrame(Frame):
             right_icon = load_image("right.png", size=(48, 48))
 
             if not left_icon or not right_icon:
-                print("Không thể tải ảnh icon điều hướng.")
                 return
 
             # Giữ reference trong cache để tránh bị GC
@@ -339,11 +333,11 @@ class WrapUpFrame(Frame):
         last_month_date = now.replace(day=1) - timedelta(days=1)
         last_month = last_month_date.strftime("%Y-%m")
 
-        print(f"🔍 Checking wrap-up for user={user_id}, month={last_month}...")
+        print(f"Checking wrap-up for user={user_id}, month={last_month}...")
         wrapup = db.find_one("user_wrapup", {"user_id": user_id, "month": last_month})
 
         if not wrapup:
-            print(f"⚠️ No wrap-up found. Generating for {last_month}...")
+            print(f" No wrap-up found. Generating for {last_month}...")
             try:
                 wrapup = generate_user_wrapup(user_id)
                 if not wrapup:

@@ -12,8 +12,8 @@ client = MongoClient("mongodb://localhost:27017/")
 db = client["moo_d"]
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
-model_path = os.path.join(base_dir, "models/model_artist.pkl")
-pivot_path = os.path.join(base_dir, "models/pivot_artist.pkl")
+model_path = os.path.join(base_dir, "../models/model_artist.pkl")
+pivot_path = os.path.join(base_dir, "../models/pivot_artist.pkl")
 
 try:
     model_artist = pickle.load(open(model_path, "rb"))

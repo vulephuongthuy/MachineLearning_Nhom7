@@ -14,7 +14,7 @@ import vlc
 from PIL.Image import Resampling
 from customtkinter import CTkButton
 
-from Recommendation_mood import *
+from recommend_metrics.Recommendation_mood import *
 from functions import *
 from ui.Login_UI import ProfileFrame
 import zipfile
@@ -23,7 +23,7 @@ import os
 import pandas as pd
 import tkinter as tk
 from ui.musicplayer import MoodPlayerFrame,RatingFrame
-from Song_mood_manager import MoodManager
+from data_manager.Song_mood_manager import MoodManager
 
 from ui.WrapUp_UI import WrapUpFrame
 
@@ -1523,7 +1523,7 @@ class Song:
 
         def load_data():
             try:
-                from Recommendation_artist import recommend_for_user
+                from recommend_metrics.Recommendation_artist import recommend_for_user
                 print(f" Đang tải recommendations cho user: {user_id}")
                 recommendations = recommend_for_user(user_id)
 
@@ -2168,7 +2168,7 @@ class Song:
         def load_recommendations():
             try:
                 db = self.controller.get_db()
-                from genre_recommendation import get_genre_recommendations
+                from recommend_metrics.genre_recommendation import get_genre_recommendations
                 result = get_genre_recommendations(db, user_id)
                 result['user_id'] = user_id
                 self.genre_recommendations_cache = result
@@ -2282,7 +2282,7 @@ class Song:
                 # Nếu không có cache, mới gọi database
                 print(f"Loading tracks for {genre_name} from database")
                 db = self.controller.get_db()
-                from genre_recommendation import recommend_tracks_for_genre, get_user_purchased_tracks, get_purchased_artists
+                from recommend_metrics.genre_recommendation import recommend_tracks_for_genre, get_user_purchased_tracks, get_purchased_artists
 
                 user_id = session.current_user.get("userId")
                 purchased_tracks = get_user_purchased_tracks(db, user_id)

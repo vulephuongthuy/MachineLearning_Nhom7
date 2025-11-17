@@ -4,7 +4,7 @@ from collections import Counter
 from datetime import datetime, timedelta
 import random
 
-# ===== ✨ Quotes theo mood =====
+# ===== Quotes theo mood =====
 MOOD_QUOTES = {
     "Happy": [
         "You found joy in little things — keep shining.",
@@ -36,7 +36,7 @@ MOOD_QUOTES = {
     ]
 }
 
-# ===== ⚙️ Kết nối MongoDB =====
+#  Kết nối MongoDB
 client = MongoClient("mongodb://localhost:27017/")
 db = client["moo_d"]
 
@@ -64,7 +64,7 @@ def generate_user_wrapup(userId: str):
         print(f" User {userId} has no listening data in {last_month}.")
         return None
 
-    print(f"🎧 Generating wrap-up for user {userId} in {last_month}...")
+    print(f"Generating wrap-up for user {userId} in {last_month}...")
 
     # === Tính top nghệ sĩ & bài hát ===
     artist_counts = Counter(r["artistName"] for r in records)
@@ -117,6 +117,6 @@ def generate_user_wrapup(userId: str):
 
     # === Lưu vào MongoDB ===
     db["user_wrapup"].insert_one(wrapup_doc)
-    print(f"✅ New wrap-up generated & saved for user {userId} ({last_month}).")
+    print(f" New wrap-up generated & saved for user {userId} ({last_month}).")
 
     return wrapup_doc

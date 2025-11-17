@@ -10,7 +10,7 @@ class RatingManager:
     def save_rating(self, track_id, rating, user_id=None):
         """Lưu rating vào MongoDB collection user_rating"""
         try:
-            # 🔥 LẤY USER_ID TỪ CURRENT_USER NẾU KHÔNG CÓ
+            # LẤY USER_ID TỪ CURRENT_USER NẾU KHÔNG CÓ
             if not user_id:
                 if current_user:
                     user_id = current_user.get("userId")
@@ -31,7 +31,7 @@ class RatingManager:
                 "ratedAt": datetime.now().isoformat()
             }
 
-            # 🔥 DÙNG COLLECTION "user_rating"
+            # DÙNG COLLECTION "user_rating"
             collection = self.db.db["user_rating"]
             result = collection.update_one(
                 {"trackId": track_id, "userId": str(user_id)},

@@ -42,7 +42,7 @@ for artist in artists:
             "trackCount": col.get("trackCount")
         })
 
-        print(f"   ➕ Album: {col['collectionName']} ({collection_id})")
+        print(f" Album: {col['collectionName']} ({collection_id})")
 
         # Step 2: Lấy tracks thuộc collection đó
         track_resp = requests.get(BASE_URL, params={
@@ -82,5 +82,3 @@ with open("data/collections.json", "w", encoding="utf-8") as f:
 
 with open("data/tracks.json", "w", encoding="utf-8") as f:
     json.dump(all_tracks, f, indent=2, ensure_ascii=False)
-
-print(f"✅ Done! Saved {len(all_collections)} collections and {len(all_tracks)} tracks.")

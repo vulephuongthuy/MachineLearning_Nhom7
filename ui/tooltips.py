@@ -22,7 +22,7 @@ class Tooltip:
         self.fg = fg
         self.tooltip_window = None
         self.after_id = None
-        self.hovering = False  # 🔹 Theo dõi trạng thái hover thật sự
+        self.hovering = False  # Theo dõi trạng thái hover thật sự
 
         # Bind sự kiện hover
         self.widget.bind("<Enter>", self.on_enter, add="+")

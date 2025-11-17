@@ -6,13 +6,11 @@ from sklearn.neighbors import NearestNeighbors
 import pickle
 import os
 
-# ===================== CONFIG =====================
 MONGO_URI = "mongodb://localhost:27017/"
 DB_NAME = "moo_d"
-MODEL_DIR = "models"
+MODEL_DIR = "../models"
 MODEL_FILE = "model_artist.pkl"
 PIVOT_FILE = "pivot_artist.pkl"
-# ==================================================
 
 print("Kết nối MongoDB...")
 client = MongoClient(MONGO_URI)

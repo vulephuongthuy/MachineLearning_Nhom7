@@ -46,7 +46,7 @@ class MoodManager:
     def get_mood(self, track_id, user_id=None):
         """Lấy mood từ database theo user_id được truyền vào hoặc current_user"""
         try:
-            # 🔥 ƯU TIÊN user_id ĐƯỢC TRUYỀN VÀO
+            #  ƯU TIÊN user_id ĐƯỢC TRUYỀN VÀO
             if not user_id:
                 from session import current_user
                 if current_user:

@@ -2,11 +2,7 @@ import pandas as pd
 import random
 from datetime import timedelta
 import numpy as np
-
-
-# ------------------------------------------------------------
-# 🧩 Sinh giả lập bảng user_favorite (phẳng như user_history_flat)
-# ------------------------------------------------------------
+#  giả lập bảng user_favorite )
 def generate_user_favorite(user_purchased_df, user_history_flat_df, tracks_df):
     """
     Sinh dữ liệu user_favorite từ purchased + history với ràng buộc:
@@ -55,11 +51,11 @@ def generate_user_favorite(user_purchased_df, user_history_flat_df, tracks_df):
         if total_tracks == 0:
             continue
 
-        # 🔹 Tính xác suất chọn bài theo PlayCount
+        #  Tính xác suất chọn bài theo PlayCount
         play_counts = merged["PlayCount"].astype(float)
         probs = play_counts / play_counts.sum()
 
-        # 🔹 Tính số lượng bài yêu thích cho user này
+        # Tính số lượng bài yêu thích cho user này
         min_fav = 5
         max_fav = max(min_fav, int(total_tracks * 0.35))  # tối đa 35% số bài
         # từng nghe
@@ -67,7 +63,7 @@ def generate_user_favorite(user_purchased_df, user_history_flat_df, tracks_df):
 
         num_fav = min(num_fav, total_tracks)  # không vượt quá tổng bài user từng nghe
 
-        # 🔹 Chọn ngẫu nhiên bài có trọng số xác suất theo PlayCount
+        # Chọn ngẫu nhiên bài có trọng số xác suất theo PlayCount
         selected_indices = np.random.choice(
             merged.index,
             size=num_fav,

@@ -81,11 +81,9 @@ class App(Tk):
             print(f" Destroyed: {page_name}")
 
     def retrain_background(self):
-        """Chạy retrain nền bằng thread + Popen."""
-
         def _run():
             try:
-                script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "retrain_model_artist.py")
+                script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "recommend_metrics/retrain_model_artist.py")
                 subprocess.Popen(["python", script_path])
                 print(" Retrain đang chạy ngầm…")
             except Exception as e:

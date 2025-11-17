@@ -19,13 +19,12 @@ class ContentRecommendationEngine:
 
         # Cache cho purchased tracks
         self.purchase_cache = OrderedDict()
-        self.similarity_cache = OrderedDict()  # NEW: Cache cho real-time similarity
+        self.similarity_cache = OrderedDict()
         self.cache_max_size = 1000
         self.cache_ttl = 300  # 5 minutes
 
         # Tạo indexes cho performance
         self._create_indexes()
-
         print(f"Content model loaded: {self.model['metadata'].get('similarity_coverage', 'N/A')}")
 
     def _create_indexes(self):

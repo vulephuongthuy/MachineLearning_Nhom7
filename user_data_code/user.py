@@ -87,9 +87,9 @@ def generate_monthly_history(purchases_path="data/purchased.json", output_dir="d
         records.sort(key=lambda x: x["played_at"])
         save_json(file_path, records)
         total_records += len(records)
-        print(f"✅ Ghi log tháng {month}: {len(records)} bản ghi → {file_path}")
+        print(f" Ghi log tháng {month}: {len(records)} bản ghi → {file_path}")
 
-    print(f"\n🎯 Tổng số bản ghi sinh ra: {total_records}")
+    print(f"\n Tổng số bản ghi sinh ra: {total_records}")
     return monthly_data
 
 
@@ -142,7 +142,7 @@ def generate_user_history(log_dir="data/history_log", output_path="data/user_his
         result.append({"UserId": uid, "Tracks": tracks})
 
     save_json(output_path, result)
-    print(f"✅ Đã sinh dữ liệu user_history → {output_path}")
+    print(f" Đã sinh dữ liệu user_history → {output_path}")
     return result
 
 
@@ -170,7 +170,7 @@ def append_new_play(user_id, track_info, played_at=None, log_dir="data/history_l
     }
     log_data.append(new_entry)
     save_json(log_path, log_data)
-    print(f"🎵 Đã thêm lượt nghe vào log tháng {month_str}")
+    print(f" Đã thêm lượt nghe vào log tháng {month_str}")
 
     # ---- Cập nhật user_history ----
     data = ensure_json_file(user_history_path, [])
@@ -197,18 +197,18 @@ def append_new_play(user_id, track_info, played_at=None, log_dir="data/history_l
 
     user_map[user_id]["Tracks"] = list(tracks.values())
     save_json(user_history_path, list(user_map.values()))
-    print(f"🔄 Đã cập nhật user_history cho user {user_id}")
+    print(f" Đã cập nhật user_history cho user {user_id}")
 
 
 # ======== CHẠY ========
 if __name__ == "__main__":
-    # 1️⃣ Sinh dữ liệu log tháng từ purchased.json
+    #  Sinh dữ liệu log tháng từ purchased.json
     generate_monthly_history(
         purchases_path="data/purchased.json",
         output_dir="data/history_log"
     )
 
-    # 2️⃣ Sinh file user_history từ các log tháng
+    #  Sinh file user_history từ các log tháng
     generate_user_history(
         log_dir="data/history_log",
         output_path="data/user_history.json"

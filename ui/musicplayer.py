@@ -1,24 +1,18 @@
-import random
 import threading
 import tkinter as tk
 import sys
 from tkinter import *
-import json, requests
-from io import BytesIO
 import requests
 import vlc
-from PIL import Image, ImageTk, ImageDraw, ImageOps
 import time
 
 import session
 from functions import *
-from Rating_manager import RatingManager
-from tooltips import Tooltip
-from Connection import connector
+from data_manager.Rating_manager import RatingManager
+from ui.tooltips import Tooltip
 from Connection.connector import Connector
-from Song_mood_manager import MoodManager
-from session import current_user
-from recommendation_player import ContentRecommendationEngine
+from data_manager.Song_mood_manager import MoodManager
+from recommend_metrics.recommendation_player import ContentRecommendationEngine
 
 
 class MoodPlayerFrame(Frame):

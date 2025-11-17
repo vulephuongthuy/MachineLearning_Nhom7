@@ -442,7 +442,7 @@ class ArtistDetailFrame(Frame):
 
         no_albums_label = Label(
             self.content_frame,
-            text="🎵 No albums found for this artist",
+            text="No albums found for this artist",
             bg="#F7F7DC",
             fg="#89A34E",
             font=("Inter", 16)

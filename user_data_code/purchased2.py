@@ -30,13 +30,13 @@ def simulate_purchases_from_popularity(
     random.seed(seed)
     np.random.seed(seed)
 
-    # ===== 1️⃣ Đọc dữ liệu =====
+    # ===== Đọc dữ liệu =====
     with open(tracks_path, "r", encoding="utf-8") as f:
         tracks = json.load(f)
     with open(users_path, "r", encoding="utf-8") as f:
         users = json.load(f)
 
-    # ===== 2️⃣ Chuẩn bị weighted user list =====
+    # ===== Chuẩn bị weighted user list =====
     weighted_user_ids = []
     for u in users:
         if u.get("user_type") == "top":
@@ -46,7 +46,7 @@ def simulate_purchases_from_popularity(
         else:  # low
             weighted_user_ids.extend([u["userId"]]*1)
 
-    # ===== 3️⃣ Tính phân vị popularity =====
+    # ===== Tính phân vị popularity =====
     pops = sorted([t.get("popularity", 0) for t in tracks])
     q95 = np.percentile(pops, 95)   # top 5% → hit
     q25 = np.percentile(pops, 25)   # dưới 25% → rare
@@ -56,7 +56,7 @@ def simulate_purchases_from_popularity(
     purchase_id = 1
     now_utc = datetime.datetime.now(datetime.timezone.utc)
 
-    # ===== 4️⃣ Sinh dữ liệu mua =====
+    # ===== Sinh dữ liệu mua =====
     for t in tracks:
         pop = t.get("popularity", 0)
 
@@ -104,21 +104,18 @@ def simulate_purchases_from_popularity(
             })
             purchase_id += 1
 
-    # ===== 5️⃣ Ghi file JSON =====
+    # =====  Ghi file JSON =====
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(purchases, f, ensure_ascii=False, indent=2)
 
-    # ===== 6️⃣ Báo cáo nhanh =====
+    # =====  Báo cáo nhanh =====
     cat_counts = {}
     for p in purchases:
         cat_counts[p["category"]] = cat_counts.get(p["category"], 0) + 1
     total = sum(cat_counts.values())
-    print("\n📊 Phân bố category theo lượt mua:")
     for k, v in cat_counts.items():
         print(f"  {k:7s}: {v:5d} ({v/total*100:4.1f}%)")
-
-    print(f"\n✅ Sinh xong {len(purchases)} bản ghi → {output_path}")
 
 # ===== CHẠY THỬ =====
 if __name__ == "__main__":

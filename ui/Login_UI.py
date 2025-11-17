@@ -917,7 +917,6 @@ class ProfileFrame(Frame):
 
     def update_info(self):
         """Cập nhật thông tin người dùng và lưu vào file JSON"""
-        # user = moo_d.session.current_user or {}
         user = session.current_user or {}
         current_email = user.get("email", "N/A")
         new_name = self.name_entry.get().strip()
@@ -951,7 +950,6 @@ class ProfileFrame(Frame):
             # moo_d.session.current_user = updated_user
             session.current_user = updated_user
             messagebox.showinfo("Success", "Information has been updated!")
-
 
         except Exception as e:
             messagebox.showerror("Error", f"An error occurred: {e}")

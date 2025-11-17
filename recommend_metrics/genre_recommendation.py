@@ -1,20 +1,16 @@
-# ===============================================
-# recommendation_genre.py - ĐÃ TỐI GIẢN
-# ===============================================
+
 import pickle
 import random
 import numpy as np
 import pandas as pd
 import os
-
-from sklearn.compose import ColumnTransformer
 from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.preprocessing import MinMaxScaler, OneHotEncoder, StandardScaler
+
 
 # --- TẢI MÔ HÌNH ---
 base_dir = os.path.dirname(os.path.abspath(__file__))
-master_feature_path = os.path.join(base_dir, "models/master_features2.pkl")
-mf_model_path = os.path.join(base_dir, "models/mf_model.pkl")
+master_feature_path = os.path.join(base_dir, "../models/master_features2.pkl")
+mf_model_path = os.path.join(base_dir, "../models/mf_model.pkl")
 
 try:
     with open(master_feature_path, 'rb') as f:
@@ -26,9 +22,6 @@ except Exception as e:
     print("Lỗi khi tải model:", e)
     master_features = mf_model = None
 
-# ===============================================
-# CACHE SYSTEM
-# ===============================================
 _user_data_cache = {}
 
 def get_cached_user_data(db, user_id):
@@ -59,9 +52,6 @@ def clear_user_cache(user_id=None):
         _user_data_cache.clear()
 
 
-# ===============================================
-# DATA ACCESS
-# ===============================================
 def get_user_purchased_tracks(db, user_id):
     """Lấy danh sách tracks user đã mua"""
     try:
@@ -95,9 +85,8 @@ def get_purchased_artists(db, user_id):
         return []
 
 
-# ===============================================
+
 # COLD START
-# ===============================================
 def get_cold_start_recommendations(db, user_id, purchased_tracks, limit_per_genre=10):
     """Cold start recommendations"""
     try:
@@ -167,9 +156,8 @@ def get_top_tracks_for_genre(db, genre, limit=10, exclude_tracks=None):
         return []
 
 
-# ===============================================
+
 # REGULAR USER
-# ===============================================
 def get_user_top_genres(db, user_id, limit=50):
     """Lấy top genres của user từ lịch sử gần nhất"""
     try:
@@ -335,9 +323,7 @@ def recommend_tracks_for_genre(user_id, genre, purchased_tracks, purchased_artis
         print(f"Lỗi khi gợi ý tracks: {e}")
         return []
 
-# ===============================================
 # HÀM CHÍNH
-# ===============================================
 def get_genre_recommendations(db, user_id, limit_per_genre=10):
     """Hàm chính lấy recommendations"""
     try:

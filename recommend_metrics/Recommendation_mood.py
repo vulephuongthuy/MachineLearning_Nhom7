@@ -112,7 +112,7 @@ def load_data_from_mongodb(db_connection):
         how='left')
 
     for feat in features_to_merge:
-        if feat != 'trackId':  # 🎯 BỎ QUA trackId
+        if feat != 'trackId':
             tracks_with_features[feat] = tracks_with_features[feat].fillna(0)
     tracks_with_features['mood_community'] = tracks_with_features[
         'mood_community'].fillna(1)

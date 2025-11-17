@@ -89,7 +89,6 @@ class MainScreen(Frame):
         # Load all tracks for search
         self.all_tracks = []
         self.after(1000, self.load_all_tracks)  # Load sau 1 giây
-        #Frame gợi ý tìm kiếm
         # Frame gợi ý tìm kiếm
         self.suggestion_color = "#FDEFF2"
         self.suggestion_border_color = "#E08DA8"
@@ -141,7 +140,7 @@ class MainScreen(Frame):
                 self.player.stop()
                 self.player.release()
         except Exception as e:
-            print(f"⚠️ Lỗi khi dừng nhạc: {e}")
+            print(f"Lỗi khi dừng nhạc: {e}")
 
         if hasattr(self, "master"):
             self.master.destroy()
@@ -227,7 +226,6 @@ class MainScreen(Frame):
         try:
             if not hasattr(self,
                            "sleeptimer_frame") or self.sleeptimer_frame is None:
-                # 🎯 SỬA: Thêm "ui." trước import
                 from ui.SleepTimer_UI import SleeptimerFrame
 
                 # Dùng parent = self để đè lên toàn HomeScreen
@@ -236,7 +234,7 @@ class MainScreen(Frame):
                 # đặt vị trí giữa góc phải, nổi rõ
                 self.sleeptimer_frame.place(x=650, y=290, width=300, height=200)
                 self.sleeptimer_frame.lift()  # 🔝 đưa lên trên cùng
-                print("🩵 SleepTimerFrame created.")
+                print("SleepTimerFrame created.")
             else:
                 if self.sleeptimer_frame.winfo_ismapped():
                     self.sleeptimer_frame.place_forget()
@@ -659,7 +657,7 @@ class MainScreen(Frame):
             track_id_str = str(track_id)
 
             # DEBUG
-            print(f"🔍 IS_TRACK_PURCHASED DEBUG:")
+            print(f"   IS_TRACK_PURCHASED DEBUG:")
             print(f"   User ID: {user_id_str}")
             print(f"   Track ID: {track_id_str}")
 
@@ -3272,7 +3270,7 @@ class Song:
         print(f"SongsManager Notify repeat changed: {mode}")
         print(f"   Số lượng repeat callbacks: {len(self.repeat_callbacks)}")
 
-        # 🔥 XỬ LÝ CALLBACK AN TOÀN GIỐNG NHƯ SONG CHANGE
+        # XỬ LÝ CALLBACK AN TOÀN GIỐNG NHƯ SONG CHANGE
         valid_callbacks = []
 
         for i, callback in enumerate(self.repeat_callbacks):
@@ -3284,7 +3282,7 @@ class Song:
             except Exception as e:
                 print(f"Repeat callback #{i} error: {e} - Đã bị remove")
 
-        # 🔥 CẬP NHẬT LẠI CALLBACK LIST
+        # CẬP NHẬT LẠI CALLBACK LIST
         self.repeat_callbacks = valid_callbacks
         print(f"   Số lượng repeat callbacks sau cleanup: {len(self.repeat_callbacks)}")
 
@@ -3666,7 +3664,6 @@ class Song:
         try:
             # TRUY CẬP SONGS_MANAGER TỪ CHÍNH SONG (vì songs_manager chính là self)
             songs_manager = self  # VÌ songs_manager THỰC CHẤT LÀ INSTANCE CỦA Song
-            # print("Song: Đang dùng chính self làm songs_manager")
 
             # KIỂM TRA TỒN TẠI TRƯỚC KHI TRUY CẬP
             if not hasattr(self, 'player') or self.player is None:
@@ -3734,7 +3731,7 @@ class Song:
 
 
 class SongListManager:
-    """Quản lý và hiển thị danh sách bài hát cho history, owned_songs, liked_songs"""
+    """Quản lý và hiển thị danh sách bài hát cho owned_songs, liked_songs"""
 
     def __init__(self, parent, controller, list_type):
         self.parent = parent  # MainScreen instance
@@ -3908,7 +3905,6 @@ class SongListManager:
     def _add_song_to_playlist_by_id(self, track_id):
         """Thêm bài hát vào playlist bằng trackId"""
         try:
-            # SỬA: Kiểm tra và lấy tên playlist từ nhiều nguồn
             playlist_name = None
 
             if hasattr(self, 'original_playlist_name') and self.original_playlist_name:
@@ -3967,10 +3963,9 @@ class SongListManager:
         if hasattr(self, 'down_icon_label') and self.down_icon_label:
             self.down_icon_label.destroy()
 
-        # Ẩn owned_songs
         self.parent.songs.owned_songs_manager.hide()
 
-        # Khôi phục tiêu đề - SỬA: dùng playlist_name được truyền vào
+        # Khôi phục tiêu đề - dùng playlist_name được truyền vào
         self.parent.buttons.current_title = playlist_name
         self.parent.buttons.create_title()
 
@@ -4029,14 +4024,12 @@ class SongListManager:
             add_btn.image = add_icon_img
             add_btn.pack(side="right", padx=10)
 
-            # SỬA LẠI CÁCH BIND - DÙNG HÀM RIÊNG ĐỂ TRÁNH LỖI SCOPE
             def add_handler(event, tid=track_id):
                 self._add_song_to_playlist_by_id(tid)
 
             add_btn.bind("<Button-1>", add_handler)
 
         else:
-            # 🎵 Ở chế độ bình thường: click bài để phát
             def on_click(e, tid=track_id):
                 self.parent.songs.on_song_click(tid)
                 self.parent.songs.sync_play_state()
@@ -4049,7 +4042,6 @@ class SongListManager:
     def toggle_play_playlist(self):
         """Toggle play/pause cho playlist và đồng bộ 2 nút"""
         if not self.parent.songs.current_song or not self.parent.songs.is_playing:
-            # Chưa có bài nào đang phát → phát bài đầu
             if self.song_list:
                 first_song = self.song_list[0]
                 self.parent.songs.on_song_click(first_song["trackId"])
@@ -4098,9 +4090,6 @@ class SongListManager:
         """Hiển thị canvas"""
         self.canvas.place(x=103, y=90)
         self.parent.songs.fixed_canvas.place(x=50, y=522)
-        # self.frame.update_idletasks()
-        # self.canvas.configure(scrollregion=self.canvas.bbox("all"))
-        # self.canvas.yview_moveto(0.0)
 
     def hide(self):
         """Ẩn canvas"""

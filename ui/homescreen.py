@@ -877,8 +877,8 @@ class Button:
 
     def edit_title(self, event=None):
         # Chỉ cho edit nếu đang ở playlist
-        fixed_titles = ["Home", "History", "Library", "Owned Songs", "Liked Songs"]
-        if self.current_title in fixed_titles:
+        playlist_titles = [playlist['name'] for playlist in self.parent.songs.playlists]
+        if self.current_title not in playlist_titles:
             return
 
         # Tạo Entry ngay trên tiêu đề

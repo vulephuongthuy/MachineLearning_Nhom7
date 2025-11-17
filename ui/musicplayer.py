@@ -2277,6 +2277,31 @@ class MoodPlayerFrame(Frame):
         if hasattr(self, 'rating_frame'):
             self.rating_frame = rating_frame
 
+        def close_on_click_outside(event):
+
+            # Kiểm tra đơn giản: nếu click không phải là rating_frame hoặc con của nó
+            clicked_widget = event.widget
+            is_inside = False
+
+            # Kiểm tra xem widget được click có phải là rating_frame hoặc con của nó không
+            while clicked_widget:
+                if clicked_widget == rating_frame:
+                    is_inside = True
+                    break
+                clicked_widget = clicked_widget.master
+
+
+            if not is_inside:
+                rating_frame.destroy_rating()
+
+        # Bind và LƯU bind_id thay vì function object
+        app = self.winfo_toplevel()
+        bind_id = app.bind("<Button-1>", close_on_click_outside, add="+")  # Thêm "+" để không ghi đè bind khác
+
+        # Lưu reference để unbind sau - QUAN TRỌNG: lưu bind_id
+        rating_frame.parent_window = app
+        rating_frame.bind_id = bind_id
+
     def show_mood_selection(self, song):
         """Hiển thị mood selection UI"""
         print(f"[MOOD] Show mood selection for: {song['trackName']}")
@@ -2285,15 +2310,15 @@ class MoodPlayerFrame(Frame):
             # THỬ CÁC CÁCH IMPORT KHÁC NHAU
             try:
                 from FinalProject.session import current_user
-                print(f"[MOOD] 🔍 current_user from FinalProject.session: {current_user}")
+                print(f"[MOOD] current_user from FinalProject.session: {current_user}")
             except ImportError:
                 try:
                     import session
                     current_user = session.current_user
-                    print(f"[MOOD] 🔍 current_user from session: {current_user}")
+                    print(f"[MOOD] current_user from session: {current_user}")
                 except ImportError:
                     from main import current_user
-                    print(f"[MOOD] 🔍 current_user from main: {current_user}")
+                    print(f"[MOOD] current_user from main: {current_user}")
 
             user_id = None
             if current_user:
@@ -2348,6 +2373,29 @@ class MoodPlayerFrame(Frame):
         if hasattr(self, 'mood_frame'):
             self.mood_frame = mood_frame
 
+        def close_on_click_outside(event):
+            # Kiểm tra nếu click không nằm trong mood_frame
+            clicked_widget = event.widget
+            is_inside = False
+
+            # Kiểm tra xem widget được click có phải là mood_frame hoặc con của nó không
+            while clicked_widget:
+                if clicked_widget == mood_frame:
+                    is_inside = True
+                    break
+                clicked_widget = clicked_widget.master
+
+            if not is_inside:
+                mood_frame.destroy_mood()
+
+        # Bind cho toàn bộ application
+        app = self.winfo_toplevel()
+        app.bind("<Button-1>", close_on_click_outside, add="+")
+
+        # Lưu reference để unbind sau
+        mood_frame.parent_window = app
+
+
         print("[MOOD] Đã tạo SongMoodsFrame")
 class RatingFrame(Frame):
     def __init__(self, parent, controller, song,user_id=None):
@@ -2368,7 +2416,6 @@ class RatingFrame(Frame):
 
         self.setup_ui()
         print(f"[RATING] RatingFrame setup completed")
-        self.bind("<Button-1>", self.check_click_outside)
 
     def setup_ui(self):
         """Khởi tạo UI rating theo design mới"""
@@ -2466,22 +2513,23 @@ class RatingFrame(Frame):
             else:
                 self.destroy()
 
-    def check_click_outside(self, event):
-        """Đóng frame nếu click outside"""
-        # Lấy tọa độ của sự kiện click
-        x = event.x_root
-        y = event.y_root
+    def destroy_rating(self):
+        """Hủy rating frame và unbind events"""
+        try:
 
-        # Lấy tọa độ và kích thước của frame
-        self_x = self.winfo_rootx()
-        self_y = self.winfo_rooty()
-        self_width = self.winfo_width()
-        self_height = self.winfo_height()
+            # Unbind tất cả click handlers
+            if hasattr(self, 'parent_window'):
+                self.parent_window.unbind("<Button-1>")
 
-        # Kiểm tra nếu click ngoài vùng của frame
-        if (x < self_x or x > self_x + self_width or
-                y < self_y or y > self_y + self_height):
-            self.destroy()
+            # Destroy chính nó (rating_frame)
+            if self.winfo_exists():
+                self.destroy()
+
+            # QUAN TRỌNG: Destroy cả parent rating_area
+            if hasattr(self, 'master') and self.master.winfo_exists():
+                self.master.destroy()
+        except Exception as e:
+            print(f"[DESTROY ERROR] {e}")
 
 class SongMoodsFrame(Frame):
     def __init__(self, parent, controller, song,user_id=None):
@@ -2670,7 +2718,25 @@ class SongMoodsFrame(Frame):
 
         print("Đã đóng mood selection và mood area")
         self.save_mood()
-# if __name__ == "__main__":
-#     root = Tk()
-#     app = MoodPlayerUI(root)
-#     root.mainloop()
+
+    def destroy_mood(self):
+        """Hủy mood frame và unbind events"""
+        try:
+
+            # Unbind tất cả click handlers
+            if hasattr(self, 'parent_window'):
+                self.parent_window.unbind("<Button-1>")
+
+            # Destroy chính nó (mood_frame)
+            if self.winfo_exists():
+                self.destroy()
+
+            # Destroy mood_area (frame cha chứa mood_frame)
+            if (hasattr(self, 'master') and
+                    self.master.winfo_exists()):
+                self.master.destroy()
+
+
+
+        except Exception as e:
+            print(f"[MOOD DESTROY ERROR] {e}")

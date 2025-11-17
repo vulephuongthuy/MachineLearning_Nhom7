@@ -3,6 +3,7 @@ from tkinter import Frame, Canvas, Label
 from urllib.request import urlopen
 
 from customtkinter import CTkButton
+from pandas.core import frame
 
 import session
 from functions import load_image, relative_to_assets
@@ -314,6 +315,8 @@ class ArtistDetailFrame(Frame):
 
         self.add_hover_effect(album_widget)
 
+
+
     def load_album_artwork(self, album_widget, url, size):
         if self._is_destroyed:
             return
@@ -528,32 +531,39 @@ class ArtistDetailFrame(Frame):
         """Hiển thị danh sách bài hát TRỰC TIẾP trong content_frame"""
         if self._is_destroyed:
             return
-
-        # Tạo container cho tracks NGAY trong content_frame
+        # Tạo container cho tracks - GIẢM PADDING
         self.tracks_container = Frame(self.content_frame, bg="#F7F7DC")
-        self.tracks_container.grid(row=2, column=0, sticky="nsew", padx=20, pady=10)
-
+        self.tracks_container.grid(row=2, column=0, sticky="nsew", padx=10, pady=10)
+        # QUAN TRỌNG: Cấu hình grid để chiếm hết chiều rộng
+        self.content_frame.grid_columnconfigure(0, weight=1)
+        self.tracks_container.grid_columnconfigure(0, weight=1)
         # Với mỗi track, tạo track item
         for track in tracks:
             self.create_album_track_item(track)
 
     def create_album_track_item(self, track):
-        """Tạo track item cho album - giống y hệt genre tracks"""
+        """Tạo track item cho album - GIẢM PADDING"""
         # Lấy full song data
         song_data = self.get_full_track_data(track)
 
-        # Tạo UI frame
-        frame = Frame(self.tracks_container, bg="#F7F7DC", padx=10, pady=5)
+        # Tạo UI frame với grid - GIẢM PADDING
+        frame = Frame(self.tracks_container, bg="#F7F7DC", padx=5, pady=5, height=120)  # Giảm padx từ 10 xuống 5
         frame.pack(fill="x", expand=True)
 
-        # Tạo image label và load ảnh
+        # Cấu hình grid - CỘT 1 CHIẾM HẾT KHÔNG GIAN
+        frame.grid_columnconfigure(0, weight=0)  # Ảnh
+        frame.grid_columnconfigure(1, weight=1)  # Text - QUAN TRỌNG: weight=1
+        frame.grid_columnconfigure(2, weight=0)  # Nút mua
+
+        # Tạo image label - CỘT 0
         img_label = Label(frame, bg="#F7F7DC", width=100, height=100)
-        img_label.pack(side="left", padx=10)
+        img_label.grid(row=0, column=0, padx=5, sticky="w")  # Giảm padx
         self.load_track_image_async(track, song_data, img_label)
 
-        # Tạo text info
+        # Tạo text info - CỘT 1
         text_frame = Frame(frame, bg="#F7F7DC")
-        text_frame.pack(side="left", fill="x", expand=True)
+        text_frame.grid(row=0, column=1, sticky="ew", padx=10)
+        text_frame.grid_columnconfigure(0, weight=1)  # QUAN TRỌNG: text frame chiếm hết width
 
         track_name = self.truncate_text(track.get("trackName", "Unknown"), 40)
         artist_name = self.truncate_text(track.get("artistName", "Unknown Artist"), 30)
@@ -561,17 +571,18 @@ class ArtistDetailFrame(Frame):
         text_color = "#89A34E"
         title_label = Label(text_frame, text=track_name,
                             font=("Coiny Regular", 18), fg=text_color, bg="#F7F7DC")
-        title_label.pack(anchor="w")
+        title_label.grid(row=0, column=0, sticky="w")  # Dùng grid thay vì pack
 
         artist_label = Label(text_frame, text=artist_name,
                              font=("Newsreader Regular", 14), fg=text_color, bg="#F7F7DC")
-        artist_label.pack(anchor="w")
+        artist_label.grid(row=1, column=0, sticky="w")  # Dùng grid thay vì pack
 
         # Widgets list để bind events
         widgets = [frame, img_label, title_label, artist_label]
 
-        # Kiểm tra purchase status và bind events
-        self.check_and_bind_purchase_events(widgets, track, song_data)
+        # Kiểm tra purchase status - TRUYỀN FRAME
+        self.check_and_bind_purchase_events(widgets, track, song_data, frame)
+
 
     def truncate_text(self, text, max_length):
         """Cắt ngắn text nếu quá dài"""
@@ -638,8 +649,8 @@ class ArtistDetailFrame(Frame):
             else:
                 img_label.config(text="🎵", font=("Arial", 24), fg="#89A34E")
 
-    def check_and_bind_purchase_events(self, widgets, track, song_data):
-        """Kiểm tra purchase status và bind events"""
+    def check_and_bind_purchase_events(self, widgets, track, song_data, parent_frame):
+        """Kiểm tra purchase status và bind events - updated"""
 
         def check_purchase():
             try:
@@ -655,7 +666,7 @@ class ArtistDetailFrame(Frame):
                 })
 
                 self.parent.after(0, lambda: self.bind_events_based_on_purchase(
-                    widgets, purchased, track, song_data
+                    widgets, purchased, track, song_data, parent_frame
                 ))
 
             except Exception as e:
@@ -664,18 +675,18 @@ class ArtistDetailFrame(Frame):
 
         threading.Thread(target=check_purchase, daemon=True).start()
 
-    def bind_events_based_on_purchase(self, widgets, purchased, track, song_data):
-        """Bind events dựa trên trạng thái purchase"""
+    def bind_events_based_on_purchase(self, widgets, purchased, track, song_data, parent_frame):
+        """Bind events dựa trên trạng thái purchase - updated"""
         frame, img_label, title_label, artist_label = widgets
         if purchased:
             self.bind_play_events(widgets, track.get('trackId'))
         else:
             self.bind_payment_events(widgets, song_data)
-            # Thêm nút mua hàng
-            self.add_buy_button(frame, song_data)
+            # Thêm nút mua hàng VÀO CỘT 2
+            self.add_buy_button(parent_frame, song_data)
 
     def add_buy_button(self, parent_frame, song_data):
-        """Thêm nút mua hàng vào frame"""
+        """Thêm nút mua hàng vào frame - sử dụng grid"""
         try:
             # Tạo ảnh cho nút giá
             self.image_cache["buy_btn"] = load_image("Buy_button.png")
@@ -690,9 +701,11 @@ class ArtistDetailFrame(Frame):
                 border_width=0,
                 corner_radius=0,
                 cursor="hand2",
+                width=60,
+                height=30,
                 command=lambda s=song_data: self.controller.process_payment(s)
             )
-            buy_btn.pack(side="right", padx=(0, 10))
+            buy_btn.grid(row=0, column=2, sticky="e", padx=(0, 35))
 
         except Exception as e:
             print(f"Lỗi khi tạo nút mua hàng: {e}")

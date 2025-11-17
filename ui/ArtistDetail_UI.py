@@ -499,7 +499,7 @@ class ArtistDetailFrame(Frame):
     def on_album_click(self, album_name):
         """Khi click album -> hiển thị danh sách bài hát"""
         if not self._is_destroyed:
-            print(f"🎵 Clicked album: {album_name}")
+            print(f"Clicked album: {album_name}")
             self.show_album_tracks(album_name)
 
     def show_album_tracks(self, album_name):

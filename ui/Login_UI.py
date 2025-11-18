@@ -456,7 +456,7 @@ class MoodTracker(Frame):
 
     def create_widgets(self):
         """Tạo text và ảnh-nút."""
-        username = session.current_user.get("name","") if session.current_user else "User"
+        username = session.current_user.get("username","") if session.current_user else "user"
         self.username = username
 
         self.canvas.create_text(

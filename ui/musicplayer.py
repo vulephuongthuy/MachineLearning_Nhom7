@@ -24,7 +24,7 @@ class MoodPlayerFrame(Frame):
         self.frame = self
         self.configure(bg="#C5D7A1")
 
-        # 🔥 THÊM RATING AREA CHO FALLBACK
+        #  THÊM RATING AREA CHO FALLBACK
         self.rating_area = Frame(self, bg="#F7F7DC")
         self.rating_frame = None
 
@@ -32,7 +32,7 @@ class MoodPlayerFrame(Frame):
         self.tracklist_images = []
         self.image_cache = {}
 
-        # 🔥 THÊM MOOD AREA
+        #  THÊM MOOD AREA
         self.mood_area = Frame(self, bg="#F7F7DC")
         self.mood_frame = None
 
@@ -73,34 +73,34 @@ class MoodPlayerFrame(Frame):
             current_track_id = None
 
             #DEBUG 1: Kiểm tra songs_manager (shared_state thật)
-            # print(f"🔍 [1] hasattr(self, 'songs_manager'): {hasattr(self, 'songs_manager')}")
+            # print(f" [1] hasattr(self, 'songs_manager'): {hasattr(self, 'songs_manager')}")
             if hasattr(self, 'songs_manager'):
-                # print(f"🔍 [2] self.songs_manager: {self.songs_manager}")
+                # print(f" [2] self.songs_manager: {self.songs_manager}")
                 if self.songs_manager:
                     # print(
-                    #     f"🔍 [3] hasattr(self.songs_manager, 'current_song'): {hasattr(self.songs_manager, 'current_song')}")
+                    #     f" [3] hasattr(self.songs_manager, 'current_song'): {hasattr(self.songs_manager, 'current_song')}")
                     if hasattr(self.songs_manager, 'current_song'):
-                        # print(f"🔍 [4] self.songs_manager.current_song: {self.songs_manager.current_song}")
+                        # print(f" [4] self.songs_manager.current_song: {self.songs_manager.current_song}")
                         if self.songs_manager.current_song:
                             current_track_id = self.songs_manager.current_song.get("trackId")
-                            # print(f"🔍 [5] trackId from songs_manager: {current_track_id}")
+                            # print(f" [5] trackId from songs_manager: {current_track_id}")
 
             # DEBUG 2: Kiểm tra current_song trực tiếp trong frame
-            # print(f"🔍 [6] hasattr(self, 'current_song'): {hasattr(self, 'current_song')}")
+            # print(f" [6] hasattr(self, 'current_song'): {hasattr(self, 'current_song')}")
             if hasattr(self, 'current_song'):
-                # print(f"🔍 [7] self.current_song: {self.current_song}")
+                # print(f" [7] self.current_song: {self.current_song}")
                 if self.current_song:
                     current_track_id_from_direct = self.current_song.get("trackId")
-                    # print(f"🔍 [8] trackId from current_song: {current_track_id_from_direct}")
+                    # print(f" [8] trackId from current_song: {current_track_id_from_direct}")
                     if current_track_id_from_direct and not current_track_id:
                         current_track_id = current_track_id_from_direct
-                        # print(f"🔍 [9] Using trackId from current_song: {current_track_id}")
+                        # print(f" [9] Using trackId from current_song: {current_track_id}")
 
             # DEBUG 3: Kiểm tra controller (nếu có)
-            # print(f"🔍 [10] hasattr(self, 'controller'): {hasattr(self, 'controller')}")
+            # print(f" [10] hasattr(self, 'controller'): {hasattr(self, 'controller')}")
             if hasattr(self, 'controller'):
                 # print(
-                #     f"🔍 [11] hasattr(self.controller, 'current_song_id'): {hasattr(self.controller, 'current_song_id')}")
+                #     f" [11] hasattr(self.controller, 'current_song_id'): {hasattr(self.controller, 'current_song_id')}")
                 if hasattr(self.controller, 'current_song_id'):
                     print(
                         f"[12] self.controller.current_song_id: {getattr(self.controller, 'current_song_id', 'NOT_SET')}")
@@ -158,7 +158,7 @@ class MoodPlayerFrame(Frame):
         user_id = current_user.get("userId") if current_user else "113025"
         current_mood = "Neutral"
 
-        # 🚨 GỌI TRỰC TIẾP ENGINE, KHÔNG qua get_recommendations_for_display
+        #  GỌI TRỰC TIẾP ENGINE, KHÔNG qua get_recommendations_for_display
         new_recommendations = self.engine.get_recommendations(
             new_track_id, current_mood, user_id, limit=8
         )
@@ -166,7 +166,7 @@ class MoodPlayerFrame(Frame):
         # Cập nhật recommendations mới
         self.songs_recommend = new_recommendations
 
-        # 🚨 GỌI TRỰC TIẾP create_discover_section để update UI
+        #  GỌI TRỰC TIẾP create_discover_section để update UI
         self.create_discover_section()
 
         print(f"Updated {len(new_recommendations)} recommendations for new track")
@@ -180,9 +180,9 @@ class MoodPlayerFrame(Frame):
             self.setup_ui()
         else:
             print("[DEBUG] Canvas đã tồn tại, đảm bảo hiển thị...")
-            # 🔥 QUAN TRỌNG: ĐẢM BẢO PACK VÀ UPDATE
-            self.canvas.pack_forget()  # 🔥 XÓA PACK CŨ TRƯỚC
-            self.canvas.pack(fill="both", expand=True)  # 🔥 PACK LẠI
+            #  QUAN TRỌNG: ĐẢM BẢO PACK VÀ UPDATE
+            self.canvas.pack_forget()  #  XÓA PACK CŨ TRƯỚC
+            self.canvas.pack(fill="both", expand=True)  #  PACK LẠI
             self.canvas.update_idletasks()
             self.update_idletasks()
 
@@ -205,7 +205,7 @@ class MoodPlayerFrame(Frame):
         self.songs_manager = songs_manager
         print("DEBUG: MoodPlayerFrame đã nhận REAL shared state")
 
-        # 🔥 CHỈ GIỮ 1 CALLBACK DUY NHẤT
+        #  CHỈ GIỮ 1 CALLBACK DUY NHẤT
         if hasattr(songs_manager, 'register_song_change_callback'):
             # Xóa tất cả callback cũ
             if hasattr(songs_manager, 'song_change_callbacks'):
@@ -214,11 +214,11 @@ class MoodPlayerFrame(Frame):
 
             songs_manager.register_song_change_callback(self.on_song_changed_from_main)
             print("Đã đăng ký callback với Song manager")
-            # 🔥 CALLBACK CHO REPEAT MODE (THÊM MỚI)
+            #  CALLBACK CHO REPEAT MODE (THÊM MỚI)
         if hasattr(songs_manager, 'register_repeat_callback'):
             songs_manager.register_repeat_callback(self.on_repeat_mode_changed)
             print("Đã đăng ký repeat callback")
-            # 🔥 ĐỒNG BỘ REPEAT MODE BAN ĐẦU
+            #  ĐỒNG BỘ REPEAT MODE BAN ĐẦU
             if hasattr(songs_manager, 'repeat_mode'):
                 current_mode = songs_manager.repeat_mode
                 print(f"Player: Đồng bộ repeat mode ban đầu: {current_mode}")
@@ -243,7 +243,7 @@ class MoodPlayerFrame(Frame):
             songs_manager.register_love_callback(self.on_love_state_changed)
             print("Đã đăng ký love callback")
 
-        # 🔥 ĐỒNG BỘ LOVE STATE BAN ĐẦU
+        #  ĐỒNG BỘ LOVE STATE BAN ĐẦU
         if hasattr(songs_manager, 'current_song') and songs_manager.current_song:
             self.sync_love_state(songs_manager.current_song)
 
@@ -335,7 +335,7 @@ class MoodPlayerFrame(Frame):
 
     def change_repeat_mode(self):
         """Khi người dùng bấm nút repeat ở Player"""
-        print("🎵 Player: Nút repeat được click")
+        print(" Player: Nút repeat được click")
         if hasattr(self, 'songs_manager'):
             current_mode = self.songs_manager.repeat_mode
             new_mode = (current_mode + 1) % 3  # 0→1→2→0
@@ -350,10 +350,10 @@ class MoodPlayerFrame(Frame):
             print("Chưa có songs_manager, không thể recommend")
             return
 
-        # 🎯 KIỂM TRA NẾU BÀI ĐÃ THAY ĐỔI (thay vì chặn hoàn toàn)
+        #  KIỂM TRA NẾU BÀI ĐÃ THAY ĐỔI (thay vì chặn hoàn toàn)
         current_track_id = self.songs_manager.current_song.get("trackId") if self.songs_manager.current_song else None
 
-        # 🔥 THÊM ĐIỀU KIỆN force_update
+        #  THÊM ĐIỀU KIỆN force_update
         if not force_update and hasattr(self,
                                         '_last_recommend_track_id') and self._last_recommend_track_id == current_track_id:
             print("Recommendations already generated for this track, skipping...")
@@ -363,10 +363,10 @@ class MoodPlayerFrame(Frame):
         recommendations = self.get_recommendations_for_display(limit=8, purpose="log")
         self.songs_recommend = recommendations
 
-        # 🎯 LƯU TRACK ID HIỆN TẠI
+        #  LƯU TRACK ID HIỆN TẠI
         self._last_recommend_track_id = current_track_id
 
-        # 🚨 TẠO/UPDATE UI
+        #  TẠO/UPDATE UI
         self.create_discover_section()
 
         print(f"Recommendations: {len(recommendations)} bài")
@@ -403,7 +403,7 @@ class MoodPlayerFrame(Frame):
         if current_song:
             self.update_disc(current_song)
 
-        # 🔥 RESUME NHẠC TỪ VỊ TRÍ CŨ KHI VÀO PLAYER
+        #  RESUME NHẠC TỪ VỊ TRÍ CŨ KHI VÀO PLAYER
         if is_playing and current_song:
             try:
                 player_state = self.songs_manager.player.get_state()
@@ -654,13 +654,13 @@ class MoodPlayerFrame(Frame):
             if purchased:
                 # print(f"Tìm thấy purchase: {purchased['trackName']}")
 
-                # 🔥 INVALIDATE CACHE NGAY LẬP TỨC
+                #  INVALIDATE CACHE NGAY LẬP TỨC
                 user_id = session.current_user.get("userId")
                 if hasattr(self, 'recommender') and hasattr(self.recommender, 'invalidate_purchase_cache'):
                     print(f"INVALIDATE CACHE before recommending...")
                     self.recommender.invalidate_purchase_cache(user_id)
 
-                # 🔥 ĐỢI 0.5 GIÂY ĐỂ ĐẢM BẢO
+                #  ĐỢI 0.5 GIÂY ĐỂ ĐẢM BẢO
                 time.sleep(0.5)
                 self.auto_recommend(force_update=True)
             else:
@@ -717,10 +717,10 @@ class MoodPlayerFrame(Frame):
         """Toggle play/pause - điều khiển cả nhạc thật lẫn UI"""
         try:
             if hasattr(self, 'songs_manager') and self.songs_manager:
-                # 🔥 GỌI HÀM play_pause() CỦA MAINSCREEN
+                #  GỌI HÀM play_pause() CỦA MAINSCREEN
                 self.songs_manager.play_pause()
 
-                # 🔥 UPDATE UI DỰA TRÊN STATE MỚI
+                #  UPDATE UI DỰA TRÊN STATE MỚI
                 if self.songs_manager.is_playing:
                     print("[DEBUG] Tiếp tục phát.")
                     self.start_progress_loop()
@@ -777,7 +777,7 @@ class MoodPlayerFrame(Frame):
 
         print(f" ACTUAL SONG: {actual_song.get('trackName')}")
 
-        # 🔥 TẠO POPUP MENU NHỎ VỚI ẢNH NỀN
+        # TẠO POPUP MENU NHỎ VỚI ẢNH NỀN
         self.song_menu_frame = tk.Toplevel(self.parent)
         self.song_menu_frame.wm_overrideredirect(True)
 
@@ -1205,7 +1205,7 @@ class MoodPlayerFrame(Frame):
                     response = requests.get(artwork)
                     img = Image.open(BytesIO(response.content)).resize((62, 62), Image.Resampling.LANCZOS)
                     song_photo = ImageTk.PhotoImage(img)
-                    self.image_cache[track_id] = song_photo  # 🎯 LƯU VÀO CACHE
+                    self.image_cache[track_id] = song_photo  #  LƯU VÀO CACHE
                     self.tracklist_images.append(song_photo)
                     # print(f"[LOAD] Đã load ảnh: {track_name}")
                 except Exception:
@@ -1480,7 +1480,7 @@ class MoodPlayerFrame(Frame):
         def update_scrollregion(event=None):
             self.tracklist_canvas.configure(scrollregion=self.tracklist_canvas.bbox("all"))
 
-            # 🎯 FIX: SET HEIGHT TRONG MỌI TRƯỜNG HỢP
+            #  FIX: SET HEIGHT TRONG MỌI TRƯỜNG HỢP
             required_height = self.tracklist_frame.winfo_reqheight()
             canvas_height = self.tracklist_canvas.winfo_height()
 
@@ -1548,7 +1548,7 @@ class MoodPlayerFrame(Frame):
                     # Preload 3 ảnh đầu
                     self.preload_images_smart(more_tracks)
 
-                    # 🎯 REFRESH UI ĐỂ HIỂN THỊ BÀI MỚI
+                    #  REFRESH UI ĐỂ HIỂN THỊ BÀI MỚI
                     self.refresh_tracklist_ui_simple()
                 else:
                     print("Không còn bài nào để load")
@@ -1630,7 +1630,7 @@ class MoodPlayerFrame(Frame):
         if not self.is_disc_rotating:
             self.is_disc_rotating = True
 
-            # 🔥 CHỈ RESET GÓC KHI BÀI MỚI
+            #  CHỈ RESET GÓC KHI BÀI MỚI
             if reset_angle:
                 self.disc_rotation_angle = 0
                 print("Reset góc về 0° (bài mới)")
@@ -1675,14 +1675,14 @@ class MoodPlayerFrame(Frame):
                 self.canvas.image = tk_image  # Giữ reference
 
             # Lặp animation - CHỈ NẾU WINDOW CÒN TỒN TẠI
-            if self.winfo_exists():  # 🔥 KIỂM TRA WIDGET CÒN TỒN TẠI
+            if self.winfo_exists():  #  KIỂM TRA WIDGET CÒN TỒN TẠI
                 self.disc_rotation_job = self.parent.after(50, self._rotate_disc)
             else:
                 self.is_disc_rotating = False
 
         except Exception as e:
             print(f"Lỗi trong _rotate_disc: {e}")
-            self.is_disc_rotating = False  # 🔥 DỪNG KHI CÓ LỖI
+            self.is_disc_rotating = False  #  DỪNG KHI CÓ LỖI
 
     def update_disc(self, song):
         """Cập nhật ảnh đĩa - ẢNH TRÒN CÓ LỖ GIỮA"""
@@ -1794,7 +1794,7 @@ class MoodPlayerFrame(Frame):
         draw.ellipse((0, 0, image.size[0], image.size[1]), fill=255)
         image.putalpha(mask)
 
-        # ======= 🔽 Thêm phần chèn ảnh lỗ giữa 🔽 =======
+        # =======  Thêm phần chèn ảnh lỗ giữa  =======
         try:
             hole_img = Image.open(hole_path).convert("RGBA")
 
@@ -2054,11 +2054,11 @@ class MoodPlayerFrame(Frame):
 
             #TIẾP TỤC LOOP NẾU ĐANG PHÁT
             if hasattr(self, 'songs_manager') and self.songs_manager and self.songs_manager.is_playing:
-                # print(f"  - 🔄 Continuing progress loop...")
+                # print(f"  -  Continuing progress loop...")
                 # Lấy time mới từ MainScreen sau 100ms
                 self.progress_loop_id = self.frame.after(100, self.update_progress)
             else:
-                # print(f"  - ⏸️ Stopping progress loop")
+                # print(f"  -  Stopping progress loop")
                 self.progress_loop_id = None
 
         except tk.TclError:
@@ -2093,7 +2093,7 @@ class MoodPlayerFrame(Frame):
 
         print(f"[DEBUG] Tua đến: {self.current_time:.1f}s")
 
-        # 4. 🔥 GỌI HÀM SEEK CỦA MAINSCREEN (SONG)
+        # 4. GỌI HÀM SEEK CỦA MAINSCREEN (SONG)
         if hasattr(self, 'songs_manager') and hasattr(self.songs_manager, 'seek_song'):
             self.songs_manager.seek_song(time_seconds)
             print(f"Player: Đã gọi seek_song của MainScreen")
@@ -2228,7 +2228,7 @@ class MoodPlayerFrame(Frame):
                 # Dùng test user tạm thời
                 user_id = "113025"
 
-            # 🔥 GỌI _create_rating_ui VỚI user_id
+            #  GỌI _create_rating_ui VỚI user_id
             self._create_rating_ui(song, user_id)
 
         except Exception as e:
@@ -2497,7 +2497,7 @@ class RatingFrame(Frame):
         success = self.rating_manager.save_rating(
             track_id=self.song['trackId'],
             rating=self.star_rating,
-            user_id=self.user_id  # 🔥 THÊM user_id
+            user_id=self.user_id  # THÊM user_id
         )
         if success:
             print(f"Đã lưu rating {self.star_rating}⭐")
@@ -2570,7 +2570,7 @@ class SongMoodsFrame(Frame):
             self.selected_mood = 0
             print("[MOOD] Chưa có mood trước đó")
 
-        # 🔥 4 MOOD BUTTONS LÀ ẢNH
+        # 4 MOOD BUTTONS LÀ ẢNH
         self.mood_buttons = []
         self.mood_images = []
 
@@ -2629,7 +2629,7 @@ class SongMoodsFrame(Frame):
             if mood_id in tooltip_texts:
                 Tooltip(btn, tooltip_texts[mood_id], wrap_length=30)
 
-        # 🔥 CHỈ CÓ NÚT CLOSE Ở DƯỚI
+        # CHỈ CÓ NÚT CLOSE Ở DƯỚI
         self.btn_frame = tk.Frame(self.bg_canvas, bg=self.main_bg)
         self.btn_frame_window = self.bg_canvas.create_window(150, 185, window=self.btn_frame)
 
